@@ -324,7 +324,7 @@ For more detailed documentation on the response object, see Node's [http.ServerR
 
 ### args.ip
 
-This will be set to the user's remote IP address.  Specifically, it will be set to the |first public IP address| if multiple addresses are provided via the `X-Forwarded-For` header and the socket.
+This will be set to the user's remote IP address.  Specifically, it will be set to the *first public IP address* if multiple addresses are provided via the `X-Forwarded-For` header and the socket.
 
 Meaning, if the user is sitting behind one or more proxy servers, *or* your web server is behind a load balancer, this will attempt to locate the user's true public (non-private) IP address.  If none is found, it'll just return the first IP address, honoring `X-Forwarded-For` before the socket (which is usually correct).
 
