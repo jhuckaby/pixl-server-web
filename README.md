@@ -95,6 +95,14 @@ This is a string to send back to the client with every request, as the `Server` 
 
 This is a boolean indicating whether or not to compress text responses using GZip ([zlib](https://nodejs.org/api/zlib.html) software compression in Node.js).  The default is `false`.
 
+## http_regex_text
+
+This is a regular expression string which is compared against the `Content-Type` response header.  When this matches, and [http_gzip_text](#http_gzip_text) is enabled, this will kick in GZip compression.  It defaults to `(text|javascript|json|css|html)`.
+
+## http_regex_json
+
+This is a regular expression string used to determine if the incoming POST request contains JSON.  It is compared against the `Content-Type` request header.  The default is `(javascript|js|json)`.
+
 ## http_response_headers
 
 This param allows you to send back any additional custom HTTP headers with each response.  Set the param to an object containing keys for each header, like this:
