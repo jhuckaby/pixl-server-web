@@ -33,7 +33,8 @@ module.exports = Class.create({
 		this.uriHandlers = [];
 		this.methodHandlers = [];
 		this.regexPrivateIP = new RegExp("(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)");
-		this.regexTextContent = new RegExp("(text|javascript|json|css|html)");
+		this.regexTextContent = new RegExp( this.config.get('http_regex_text') || "(text|javascript|json|css|html)", "i" );
+		this.regexJSONContent = new RegExp( this.config.get('http_regex_json') || "(javascript|js|json)", "i" );
 		
 		// prep static file server
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
@@ -280,7 +281,7 @@ module.exports = Class.create({
 				} );
 				request.on('end', function() {
 					// request body is complete
-					if (content_type.match(/(javascript|js|json)/i)) {
+					if (content_type.match( self.regexJSONContent )) {
 						// parse json
 						try {
 							args.params = JSON.parse( body );
