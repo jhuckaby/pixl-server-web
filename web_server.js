@@ -267,13 +267,16 @@ module.exports = Class.create({
 				// parse ourselves (i.e. raw json)
 				var bytesMax = self.config.get('http_max_upload_size') || (32 * 1024 * 1024);
 				var bytesExpected = request.headers['content-length'] || "(Unknown)";
-				var body = '';
+				var total_bytes = 0;
+				var chunks = [];
 				
 				request.on('data', function(chunk) {
 					// receive data chunk
-					body += chunk;
-					self.logDebug(10, "Upload progress: " + body.length + " of " + bytesExpected + " bytes");
-					if (body.length > bytesMax) {
+					chunks.push( chunk );
+					total_bytes += chunk.length;
+					
+					self.logDebug(10, "Upload progress: " + total_bytes + " of " + bytesExpected + " bytes");
+					if (total_bytes > bytesMax) {
 						self.logError("http", "Error processing POST from: " + ip + ": " + request.url + ": Max POST size exceeded");
 						request.socket.end();
 						return;
@@ -281,10 +284,12 @@ module.exports = Class.create({
 				} );
 				request.on('end', function() {
 					// request body is complete
+					var body = Buffer.concat(chunks, total_bytes);
+					
 					if (content_type.match( self.regexJSONContent )) {
 						// parse json
 						try {
-							args.params = JSON.parse( body );
+							args.params = JSON.parse( body.toString() );
 						}
 						catch (e) {
 							self.logError("http", "Error processing POST from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e);

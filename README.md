@@ -369,7 +369,7 @@ If the request is a "pure" JSON POST, meaning the Content-Type contains `json` o
 
 #### Unknown POST
 
-If the Content-Type doesn't match any of the above values, it will simply be treated as a plain string and placed into `args.params.raw`.
+If the Content-Type doesn't match any of the above values, it will simply be treated as a plain binary data, and a [Buffer](https://nodejs.org/api/buffer.html) will be placed into `args.params.raw`.
 
 ### args.files
 
