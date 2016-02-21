@@ -148,7 +148,7 @@ Your network architecture may have a proxy server or load balancer sitting in fr
 	Front-End-Https: on
 ```
 
-The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the {args.request.headers.ssl} property will be set to `true`, and calls to {server.getSelfURL()} will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
+The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the `args.request.headers.ssl` property will be set to `true`, and calls to {server.getSelfURL()} will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
 
 ```javascript
 	{
@@ -405,7 +405,7 @@ This is a reference to the pixl-server object which handled the request.
 
 To determine if a request is HTTP or HTTPS, check to see if there is an `args.request.headers.ssl` property.  If so, and this is set to a `true` value, then the request was sent in via HTTPS, otherwise you can assume it was HTTP.
 
-Please note that if you have a load balancer or other proxy handling HTTPS / SSL for you, the final request to the web server may not be HTTPS.  To determine if the |original| request from the client was HTTPS, you may need to sniff for a particular request header, e.g. `Front-End-Https` (used by Amazon ELB).
+Please note that if you have a load balancer or other proxy handling HTTPS / SSL for you, the final request to the web server may not be HTTPS.  To determine if the *original* request from the client was HTTPS, you may need to sniff for a particular request header, e.g. `Front-End-Https` (used by Amazon ELB).
 
 See the [https_header_detect](#https_header_detect) configuration property for an automatic way to handle this.
 
