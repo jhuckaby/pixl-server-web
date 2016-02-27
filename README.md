@@ -148,7 +148,7 @@ Your network architecture may have a proxy server or load balancer sitting in fr
 	Front-End-Https: on
 ```
 
-The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the `args.request.headers.ssl` property will be set to `true`, and calls to {server.getSelfURL()} will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
+The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the `args.request.headers.ssl` property will be set to `true`, and calls to `server.getSelfURL()` will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
 
 ```javascript
 	{
