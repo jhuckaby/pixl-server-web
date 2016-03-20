@@ -520,6 +520,11 @@ module.exports = Class.create({
 			self.logError(err.code || 1, "Error sending HTTP response: " + err.message);
 		} );
 		
+		response.on('finish', function() {
+			// response actually completed writing
+			self.logDebug(9, "Response finished writing to socket");
+		} );
+		
 		// auto-gzip response based on content type
 		if (body && 
 			(http_code == 200) && 
