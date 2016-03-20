@@ -6,6 +6,7 @@
 var Formidable = require('formidable');
 var Querystring = require('querystring');
 var Static = require('node-static');
+var ErrNo = require('errno');
 var fs = require('fs');
 var os = require('os');
 var zlib = require('zlib');
@@ -89,12 +90,22 @@ module.exports = Class.create({
 		} );
 		
 		this.http.on('connection', function(socket) {
+			var ip = socket.remoteAddress || '';
 			var id = self.getNextId('c');
 			self.conns[ id ] = socket;
-			self.logDebug(8, "New incoming HTTP connection: " + id + ": " + socket.remoteAddress);
+			self.logDebug(8, "New incoming HTTP connection: " + id, { ip: ip });
+			
+			socket.on('error', function(err) {
+				// client aborted connection?
+				var msg = err.message;
+				if (err.errno && ErrNo.code[err.errno]) {
+					msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
+				}
+				self.logError(err.code || 1, "Socket error: " + id + ": " + msg, { ip: ip });
+			} );
 			
 			socket.on('close', function() {
-				self.logDebug(8, "HTTP connection has closed: " + id);
+				self.logDebug(8, "HTTP connection has closed: " + id, { ip: ip });
 				delete self.conns[ id ];
 			} );
 		} );
@@ -139,12 +150,22 @@ module.exports = Class.create({
 		} );
 		
 		this.https.on('connection', function(socket) {
+			var ip = socket.remoteAddress || '';
 			var id = self.getNextId('cs');
 			self.conns[ id ] = socket;
-			self.logDebug(8, "New incoming HTTPS (SSL) connection: " + id + ": " + socket.remoteAddress);
+			self.logDebug(8, "New incoming HTTPS (SSL) connection: " + id, { ip: ip });
+			
+			socket.on('error', function(err) {
+				// client aborted connection?
+				var msg = err.message;
+				if (err.errno && ErrNo.code[err.errno]) {
+					msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
+				}
+				self.logError(err.code || 1, "Socket error: " + id + ": " + msg, { ip: ip });
+			} );
 			
 			socket.on('close', function() {
-				self.logDebug(8, "HTTPS (SSL) connection has closed: " + id);
+				self.logDebug(8, "HTTPS (SSL) connection has closed: " + id, { ip: ip });
 				delete self.conns[ id ];
 			} );
 		} );
@@ -484,10 +505,20 @@ module.exports = Class.create({
 			http_status = RegExp.$2;
 		}
 		
+		// use duck typing to see if we have a stream, buffer or string
+		var is_stream = (body && body.pipe);
+		// var is_buffer = (body && body.fill);
+		// var is_string = (body && !is_stream && !is_buffer);
+		
 		// set content-type if not already set
-		if (body && (typeof(headers['Content-Length']) == 'undefined')) {
+		if (body && !is_stream && (typeof(headers['Content-Length']) == 'undefined')) {
 			headers['Content-Length'] = body.length;
 		}
+		
+		response.on('error', function(err) {
+			// response pipe error (usually caught at the socket level)
+			self.logError(err.code || 1, "Error sending HTTP response: " + err.message);
+		} );
 		
 		// auto-gzip response based on content type
 		if (body && 
@@ -499,39 +530,61 @@ module.exports = Class.create({
 			args.request.headers['accept-encoding'] && 
 			args.request.headers['accept-encoding'].match(/\bgzip\b/i)) {
 			
-			zlib.gzip(body, function(err, data) {
-				if (err) {
-					// should never happen
-					self.logError('http', "Failed to gzip compress content: " + err);
-					data = body;
-				}
-				else {
-					// no error
-					body = null; // free up memory
-					self.logDebug(9, "Compressed text output with gzip: " + headers['Content-Length'] + " bytes down to: " + data.length + " bytes");
-					headers['Content-Length'] = data.length;
-					headers['Content-Encoding'] = 'gzip';
-				}
+			if (is_stream) {
+				// stream pipe
+				self.logDebug(9, "Sending streaming text output with gzip encoding");
+				headers['Content-Encoding'] = 'gzip';
 				
-				self.logDebug(9, "Sending HTTP response: " + status, headers);
+				self.logDebug(9, "Sending streaming HTTP response: " + status, headers);
 				
-				// send data
 				response.writeHead( http_code, http_status, headers );
-				response.write( data );
-				response.end();
+				
+				var gzip = zlib.createGzip();
+				body.pipe( gzip ).pipe( response );
 				
 				self.logDebug(9, "Request complete");
-			});
+			}
+			else {
+				zlib.gzip(body, function(err, data) {
+					if (err) {
+						// should never happen
+						self.logError('http', "Failed to gzip compress content: " + err);
+						data = body;
+					}
+					else {
+						// no error
+						body = null; // free up memory
+						self.logDebug(9, "Compressed text output with gzip: " + headers['Content-Length'] + " bytes down to: " + data.length + " bytes");
+						headers['Content-Length'] = data.length;
+						headers['Content-Encoding'] = 'gzip';
+					}
+					
+					self.logDebug(9, "Sending HTTP response: " + status, headers);
+					
+					// send data
+					response.writeHead( http_code, http_status, headers );
+					response.write( data );
+					response.end();
+					
+					self.logDebug(9, "Request complete");
+				}); // zlib.gzip
+			} // buffer or string
 		} // gzip
 		else {
 			// no compression
-			this.logDebug(9, "Sending HTTP response: " + status, headers);
-			
-			// send data
-			response.writeHead( http_code, http_status, headers );
-			if (body) response.write( body );
-			response.end();
-			
+			if (is_stream) {
+				this.logDebug(9, "Sending streaming HTTP response: " + status, headers);
+				response.writeHead( http_code, http_status, headers );
+				body.pipe( response );
+			}
+			else {
+				this.logDebug(9, "Sending HTTP response: " + status, headers);
+				
+				// send data
+				response.writeHead( http_code, http_status, headers );
+				if (body) response.write( body );
+				response.end();
+			}
 			this.logDebug(9, "Request complete");
 		}
 	},
@@ -604,3 +657,9 @@ module.exports = Class.create({
 	}
 	
 });
+
+function ucfirst(text) {
+	// capitalize first character only, lower-case rest
+	return text.substring(0, 1).toUpperCase() + text.substring(1, text.length).toLowerCase();
+};
+
