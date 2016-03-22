@@ -1,6 +1,6 @@
 // Simple HTTP / HTTPS Web Server
 // A component for the pixl-server daemon framework.
-// Copyright (c) 2015 Joseph Huckaby
+// Copyright (c) 2015 - 2016 Joseph Huckaby
 // Released under the MIT License
 
 var Formidable = require('formidable');
@@ -19,9 +19,21 @@ module.exports = Class.create({
 	__name: 'WebServer',
 	__parent: Component,
 	
+	defaultConfig: {
+		http_regex_private_ip: "(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)",
+		http_regex_text: "(text|javascript|json|css|html)",
+		http_regex_json: "(javascript|js|json)",
+		http_keep_alives: 1,
+		http_timeout: 120,
+		http_static_index: "index.html",
+		http_static_ttl: 0,
+		http_max_upload_size: 32 * 1024 * 1024,
+		http_temp_dir: os.tmpDir(),
+		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 }
+	},
+	
 	conns: null,
 	nextId: 1,
-	regexPrivateIP: null,
 	uriHandlers: null,
 	methodHandlers: null,
 	
@@ -33,17 +45,18 @@ module.exports = Class.create({
 		this.conns = {};
 		this.uriHandlers = [];
 		this.methodHandlers = [];
-		this.regexPrivateIP = new RegExp("(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)");
-		this.regexTextContent = new RegExp( this.config.get('http_regex_text') || "(text|javascript|json|css|html)", "i" );
-		this.regexJSONContent = new RegExp( this.config.get('http_regex_json') || "(javascript|js|json)", "i" );
+		this.regexPrivateIP = new RegExp( this.config.get('http_regex_private_ip') );
+		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
+		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
+		this.keepAlives = this.config.get('http_keep_alives');
 		
 		// prep static file server
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
-			cache: this.config.get('http_static_ttl') || 0,
+			cache: this.config.get('http_static_ttl'),
 			serverInfo: this.config.get('http_server_signature') || this.__name,
 			gzip: this.config.get('http_gzip_text') ? this.regexTextContent : false,
 			headers: JSON.parse( JSON.stringify(this.config.get('http_response_headers') || {}) ),
-			indexFile: this.config.get('http_static_index') || 'index.html'
+			indexFile: this.config.get('http_static_index')
 		} );
 		
 		// front-end https header detection
@@ -185,8 +198,9 @@ module.exports = Class.create({
 		} );
 		
 		// set idle socket timeout
-		if (this.config.get('https_timeout')) {
-			this.https.setTimeout( this.config.get('https_timeout') * 1000 );
+		var timeout_sec = this.config.get('https_timeout') || this.config.get('http_timeout') || 0;
+		if (timeout_sec) {
+			this.https.setTimeout( timeout_sec * 1000 );
 		}
 	},
 	
@@ -263,9 +277,9 @@ module.exports = Class.create({
 				// use formidable for the heavy lifting
 				var form = new Formidable.IncomingForm();
 				form.keepExtensions = true;
-				form.maxFieldsSize = self.config.get('http_max_upload_size') || (32 * 1024 * 1024);
+				form.maxFieldsSize = self.config.get('http_max_upload_size');
 				form.hash = false;
-				form.uploadDir = self.config.get('http_temp_dir') || os.tmpDir();
+				form.uploadDir = self.config.get('http_temp_dir');
 				
 				form.on('progress', function(bytesReceived, bytesExpected) {
 					self.logDebug(10, "Upload progress: " + bytesReceived + " of " + bytesExpected + " bytes");
@@ -286,7 +300,7 @@ module.exports = Class.create({
 			}
 			else {
 				// parse ourselves (i.e. raw json)
-				var bytesMax = self.config.get('http_max_upload_size') || (32 * 1024 * 1024);
+				var bytesMax = self.config.get('http_max_upload_size');
 				var bytesExpected = request.headers['content-length'] || "(Unknown)";
 				var total_bytes = 0;
 				var chunks = [];
@@ -466,13 +480,26 @@ module.exports = Class.create({
 	sendStaticResponse: function(args) {
 		// serve static file for URI
 		var self = this;
+		var request = args.request;
+		var response = args.response;
 		this.logDebug(9, "Serving static file for: " + args.request.url);
 		
-		this.fileServer.serve(args.request, args.response, function(err, result) {
+		response.on('finish', function() {
+			// response actually completed writing
+			self.logDebug(9, "Response finished writing to socket");
+			
+			// HTTP Keep-Alive: only if enabled in config, and requested by client
+			if (!self.keepAlives || !request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
+				// close socket
+				request.socket.destroy();
+			}
+		} );
+		
+		this.fileServer.serve(request, response, function(err, result) {
 			if (err) {
-				self.logError("http", "Error serving static file: " + args.request.url + ": " + err.message);
-				args.response.writeHead(err.status, err.headers);
-				args.response.end();
+				self.logError("http", "Error serving static file: " + request.url + ": " + err.message);
+				response.writeHead(err.status, err.headers);
+				response.end();
 			}
 			else {
 				self.logDebug(8, "Static HTTP response sent: " + result.status, result.headers);
@@ -483,6 +510,7 @@ module.exports = Class.create({
 	sendHTTPResponse: function(args, status, headers, body) {
 		// send http response
 		var self = this;
+		var request = args.request;
 		var response = args.response;
 		if (!headers) headers = {};
 		
@@ -515,14 +543,15 @@ module.exports = Class.create({
 			headers['Content-Length'] = body.length;
 		}
 		
-		response.on('error', function(err) {
-			// response pipe error (usually caught at the socket level)
-			self.logError(err.code || 1, "Error sending HTTP response: " + err.message);
-		} );
-		
 		response.on('finish', function() {
 			// response actually completed writing
 			self.logDebug(9, "Response finished writing to socket");
+			
+			// HTTP Keep-Alive: only if enabled in config, and requested by client
+			if (!self.keepAlives || !request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
+				// close socket
+				request.socket.destroy();
+			}
 		} );
 		
 		// auto-gzip response based on content type
@@ -544,13 +573,13 @@ module.exports = Class.create({
 				
 				response.writeHead( http_code, http_status, headers );
 				
-				var gzip = zlib.createGzip();
+				var gzip = zlib.createGzip( self.config.get('http_gzip_opts') || {} );
 				body.pipe( gzip ).pipe( response );
 				
 				self.logDebug(9, "Request complete");
 			}
 			else {
-				zlib.gzip(body, function(err, data) {
+				zlib.gzip(body, self.config.get('http_gzip_opts') || {}, function(err, data) {
 					if (err) {
 						// should never happen
 						self.logError('http', "Failed to gzip compress content: " + err);

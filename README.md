@@ -120,6 +120,25 @@ This param allows you to send back any additional custom HTTP headers with each 
 
 This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.
 
+## http_keep_alives
+
+This enables or disables [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persistent_connection) support in the server.  Set this to any true or false value.  It defaults to enabled.  Please note that the client must request a Keep-Alive connection by passing a `Connection: keep-alive` header.
+
+## http_gzip_opts
+
+This allows you to set various options for the automatic GZip compression in HTTP responses.  Example:
+
+```js
+{
+	http_gzip_opts: {
+		level: 6,
+		memLevel: 8
+	}
+}
+```
+
+Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#zlib_class_options) for more details on what can be set here.
+
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, `https_cert_file` and `https_key_file` for this to work.
