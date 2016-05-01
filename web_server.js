@@ -560,6 +560,7 @@ module.exports = Class.create({
 			this.config.get('http_gzip_text') && 
 			headers['Content-Type'] && 
 			headers['Content-Type'].match(this.regexTextContent) && 
+			!headers['Content-Encoding'] && // do not encode if already encoded
 			args.request && 
 			args.request.headers['accept-encoding'] && 
 			args.request.headers['accept-encoding'].match(/\bgzip\b/i)) {
