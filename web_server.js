@@ -535,8 +535,13 @@ module.exports = Class.create({
 		
 		// use duck typing to see if we have a stream, buffer or string
 		var is_stream = (body && body.pipe);
-		// var is_buffer = (body && body.fill);
-		// var is_string = (body && !is_stream && !is_buffer);
+		var is_buffer = (body && body.fill);
+		var is_string = (body && !is_stream && !is_buffer);
+		
+		// if string, convert to buffer so content length is correct (unicode)
+		if (is_string) {
+			body = new Buffer(body);
+		}
 		
 		// set content-type if not already set
 		if (body && !is_stream && (typeof(headers['Content-Length']) == 'undefined')) {
