@@ -7,6 +7,7 @@ var Formidable = require('formidable');
 var Querystring = require('querystring');
 var Static = require('node-static');
 var ErrNo = require('errno');
+var Netmask = require('netmask').Netmask;
 var fs = require('fs');
 var os = require('os');
 var zlib = require('zlib');
@@ -29,13 +30,15 @@ module.exports = Class.create({
 		http_static_ttl: 0,
 		http_max_upload_size: 32 * 1024 * 1024,
 		http_temp_dir: os.tmpDir(),
-		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 }
+		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
+		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
 	},
 	
 	conns: null,
 	nextId: 1,
 	uriHandlers: null,
 	methodHandlers: null,
+	defaultACL: [],
 	
 	startup: function(callback) {
 		// start http server
@@ -65,6 +68,20 @@ module.exports = Class.create({
 			this.ssl_header_detect = {};
 			for (var key in ssl_headers) {
 				this.ssl_header_detect[ key.toLowerCase() ] = new RegExp( ssl_headers[key] );
+			}
+		}
+		
+		// initialize default ACL blocks
+		if (this.config.get('http_default_acl')) {
+			try {
+				this.config.get('http_default_acl').forEach( function(block) {
+					self.defaultACL.push( new Netmask(block) );
+				} );
+			}
+			catch (err) {
+				var err_msg = "Failed to initialize ACL: " + err.message;
+				this.logError('acl', err_msg);
+				throw new Error(err_msg);
 			}
 		}
 		
@@ -204,8 +221,41 @@ module.exports = Class.create({
 		}
 	},
 	
-	addURIHandler: function(uri, name, callback) {
+	addURIHandler: function() {
 		// add custom handler for URI
+		// Calling conventions:
+		//		uri, name, callback
+		//		uri, name, acl, callback
+		var uri = arguments[0];
+		var name = arguments[1];
+		var acl = false;
+		var callback = null;
+		
+		if (arguments.length == 4) { acl = arguments[2]; callback = arguments[3]; }
+		else { callback = arguments[2]; }
+		
+		if (acl) {
+			if (Array.isArray(acl)) {
+				// custom ACL for this handler
+				var blocks = [];
+				try {
+					acl.forEach( function(block) {
+						blocks.push( new Netmask(block) );
+					} );
+					acl = blocks;
+				}
+				catch (err) {
+					var err_msg = "Failed to initialize custom ACL: " + err.message;
+					this.logError('acl', err_msg);
+					throw new Error(err_msg);
+				}
+			}
+			else {
+				// use default ACL list
+				acl = this.defaultACL;
+			}
+		} // acl
+		
 		this.logDebug(3, "Adding custom URI handler: " + uri + ": " + name);
 		if (typeof(uri) == 'string') {
 			uri = new RegExp("^" + uri + "$");
@@ -213,6 +263,7 @@ module.exports = Class.create({
 		this.uriHandlers.push({
 			regexp: uri,
 			name: name,
+			acl: acl,
 			callback: callback
 		});
 	},
@@ -387,6 +438,54 @@ module.exports = Class.create({
 					}
 				} // foreach cookie
 			} // headers.cookie
+			
+			// Check ACL here
+			if (handler.acl) {
+				var allowed = true;
+				var bad_ip = '';
+				
+				for (var idx = 0, len = args.ips.length; idx < len; idx++) {
+					var ip = args.ips[idx];
+					if (ip.match(/(\d+\.\d+\.\d+\.\d+)/)) ip = RegExp.$1; // extract IPv4
+					else ip = '0.0.0.0'; // unsupported format, probably ipv6
+					var contains = false;
+					
+					for (var idy = 0, ley = handler.acl.length; idy < ley; idy++) {
+						var block = handler.acl[idy];
+						
+						try { 
+							if (block.contains(ip)) { contains = true; idy = ley; }
+						}
+						catch (err) {;}
+					} // foreach acl
+					
+					if (!contains) {
+						// All ACLs rejected, so that's it
+						allowed = false;
+						bad_ip = ip;
+						idx = len;
+					}
+				} // foreach ip
+				
+				if (allowed) {
+					// yay!
+					this.logDebug(9, "ACL allowed request", args.ips);
+				}
+				else {
+					// nope
+					this.logError('acl', "IP address rejected by ACL: " + bad_ip, args.ips);
+					
+					this.sendHTTPResponse( 
+						args, 
+						"403 Forbidden", 
+						{ 'Content-Type': "text/html" }, 
+						"403 Forbidden: ACL disallowed request.\n"
+					);
+					
+					this.deleteUploadTempFiles(args);
+					return;
+				} // not allowed
+			} // acl check
 			
 			handler.callback( args, function() {
 				// custom handler complete, send response

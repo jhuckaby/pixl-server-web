@@ -139,6 +139,18 @@ This allows you to set various options for the automatic GZip compression in HTT
 
 Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#zlib_class_options) for more details on what can be set here.
 
+## http_default_acl
+
+This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Access_control_list), which is only used for URI handlers that register themselves as private.  To customize it, specify an array of [IPv4 addresses](https://en.wikipedia.org/wiki/IPv4), partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  It defaults to [localhost](https://en.wikipedia.org/wiki/Localhost) plus the [IPv4 private reserved space](https://en.wikipedia.org/wiki/Private_network).  Example:
+
+```js
+{
+	http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+}
+```
+
+See [Access Control Lists](#access-control-lists) below for more details.
+
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, `https_cert_file` and `https_key_file` for this to work.
@@ -212,7 +224,33 @@ server.WebServer.addURIHandler( /^\/custom\/match\/$/i, 'Custom2', function(args
 
 Your handler function is passed exactly two arguments.  First, an `args` object containing all kinds of useful information about the request (see [args](#args) below), and a callback function that you must call when the request is complete and you want to send a response.
 
-If you specified a regular expression with paren groups for the URI, the matches array will be passed into the `args` object as `args.matches`.  Using this you can extract your matched groups from the URI, for e.g. `/^\/api\/(\w+)/`.
+If you specified a regular expression with paren groups for the URI, the matches array will be included in the `args` object as `args.matches`.  Using this you can extract your matched groups from the URI, for e.g. `/^\/api\/(\w+)/`.
+
+## Access Control Lists
+
+If you want to restrict access to certain URI handlers, you can specify an [ACL](https://en.wikipedia.org/wiki/Access_control_list) which represents a list of IP address ranges to allow.  To use the [default ACL](#http_default_acl), simply pass `true` as the 3rd argument to `addURIHandler()`, just before your callback.  This flags the URI as private.  Example:
+
+```js
+server.WebServer.addURIHandler( /^\/private/, "Private Admin Area", true, function(args, callback) {
+	// request allowed
+	callback( "200 OK", { 'Content-Type': 'text/html' }, "<h1>Access granted!</h1>\n" );
+} );
+```
+
+This will protect the handler using the *default ACL*, as specified by the [http_default_acl](#http_default_acl) configuration parameter.  However, if you want to specify a *custom* ACL per handler, simply replace the `true` argument with an array of [IPv4 addresses](https://en.wikipedia.org/wiki/IPv4), partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
+
+```js
+server.WebServer.addURIHandler( /^\/secret/, "Super Secret Area", ['10.0.0.0/8', '172.16.0.0/12'], function(args, callback) {
+	// request allowed
+	callback( "200 OK", { 'Content-Type': 'text/html' }, "<h1>Access granted!</h1>\n" );
+} );
+```
+
+This would only allow requests from either `10.0.0.0/8` or `172.16.0.0/12`.
+
+The ACL code scans *all* the IP addresses from the client, including the socket IP and any passed as part of the `X-Forwarded-For` header (populated by load balancers, proxies, etc.).  All the IPs must pass the ACL test in order for the request to be allowed through to your handler.
+
+If a request is rejected, your handler isn't even called.  Instead, a standard `HTTP 403 Forbidden` response is sent to the client, and an error is logged.
 
 ## Sending Responses
 
