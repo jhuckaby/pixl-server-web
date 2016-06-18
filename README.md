@@ -151,6 +151,18 @@ This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Acc
 
 See [Access Control Lists](#access-control-lists) below for more details.
 
+## http_log_requests
+
+This boolean allows you to enable transaction logging in the web server.  It defaults to `false`.  See [Logging](#logging) below.
+
+## http_regex_log
+
+If [http_log_requests](#http_log_requests) is enabled, this allows you to specify a regular expression to match against incoming request URIs.  Only if they match will the request be logged.  It defaults to match all URIs (`.+`).  See [Logging](#logging) below for details.
+
+## http_recent_requests
+
+This integer specifies the number of recent requests to provide in the `getStats()` response.  It defaults to `10`.  See [Stats](#stats) below for details.
+
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, `https_cert_file` and `https_key_file` for this to work.
@@ -176,7 +188,7 @@ If HTTPS mode is enabled, you can set this param to boolean `true` to force all 
 Your network architecture may have a proxy server or load balancer sitting in front of the web server, and performing all HTTPS/SSL encryption for you.  Usually, these devices inject some kind of HTTP request header into the back-end web server request, so you can "detect" a front-end HTTPS proxy request in your code.  For example, Amazon AWS load balancers inject the following HTTP request header into all back-end requests:
 
 ```
-Front-End-Https: on
+X-Forwarded-Proto: https
 ```
 
 The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the `args.request.headers.ssl` property will be set to `true`, and calls to `server.getSelfURL()` will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
@@ -193,7 +205,7 @@ The `https_header_detect` property allows you to define any number of header reg
 }
 ```
 
-Note that these are matched using logical OR, so only one of them needs to match to enable SSL mode.  The values are interpreted as regular expressions, in case you need to match more than one value.
+Note that these are matched using logical OR, so only one of them needs to match to enable SSL mode.  The values are interpreted as regular expressions, in case you need to match more than one header value.
 
 ## https_timeout
 
@@ -454,17 +466,317 @@ This is an object parsed from the incoming `Cookie` HTTP header, if present.  Th
 var session_id = args.cookies['session_id'];
 ```
 
+### args.perf
+
+This is a reference to a [pixl-perf](https://www.npmjs.com/package/pixl-perf) object, which is used internally by the web server to track performance metrics for the request.  The metrics may be logged at the end of each request (see [Logging](#logging) below) and included in the stats (see [Stats](#stats) below).
+
 ### args.server
 
 This is a reference to the pixl-server object which handled the request.
+
+# Logging
+
+In addition to the standard debug logging in pixl-server, the web server component can also log each request as a `transaction`.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_requests](#http_log_requests) configuration property to `true`.  The pixl-server log will then include a `transaction` row for every completed web request.  Example:
+
+```
+[1466210619.37][2016/06/17 17:43:39][joeretina.local][WebServer][transaction][HTTP 200 OK][/server-status?pretty=1][{"proto":"http","ips":["::ffff:127.0.0.1"],"host":"127.0.0.1:3012","ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17","perf":{"scale":1000,"perf":{"total":10.266,"read":0.256,"process":1.077,"write":7.198},"counters":{"bytes_in":587,"bytes_out":431,"num_requests":1}}}]
+```
+
+The log columns are configurable in pixl-server, but are typically the following:
+
+| Column | Name | Description |
+|--------|------|-------------|
+| 1 | `hires_epoch` | Epoch date/time, including milliseconds (floating point). |
+| 2 | `date` | Human-readable date/time, in the local server timezone. |
+| 3 | `hostname` | The hostname of the server. |
+| 4 | `component` | The server component name (`WebServer`). |
+| 5 | `category` | The category of the log entry (`transaction`). |
+| 6 | `code` | The HTTP response code and message, e.g. `HTTP 200 OK`. |
+| 7 | `msg` | The URI of the request. |
+| 8 | `data` | A JSON document containing data about the request. |
+
+The `data` column is a JSON document containing various bits of additional information about the request.  Here is a formatted example:
+
+```js
+{
+	"proto": "http",
+	"ips": [
+		"::ffff:127.0.0.1"
+	],
+	"ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17",
+	"host": "localhost",
+	"perf": {
+		"scale": 1000,
+		"perf": {
+			"total": 8.041,
+			"read": 0.077,
+			"process": 1.315,
+			"write": 5.451
+		},
+		"counters": {
+			"bytes_in": 587,
+			"bytes_out": 639,
+			"num_requests": 1
+		}
+	}
+}
+```
+
+Here are descriptions of the data JSON properties:
+
+| Property | Description |
+|----------|-------------|
+| `proto` | The protocol of the request (`http` or `https`). |
+| `ips` | All the client IPs as an array (includes those from the `X-Forwarded-For` header). |
+| `ua` | The `User-Agent` string from the request headers. |
+| `host` | The hostname from the request URL. |
+| `perf` | Performance metrics, see below. |
+
+The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.npmjs.com/package/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
+
+If you only want to log *some* requests, but not all of them, you can specify a regular expression in the [http_regex_log](#http_regex_log) configuration property, which is matched against the incoming request URIs.  Example:
+
+```js
+{
+	"http_regex_log": "^/my/special/path"
+}
+```
+
+# Stats
+
+The web server keeps internal statistics including all open sockets, all active and recently completed requests, and performance metrics.  You can query for these by calling the `getStats()` method on the web server component.  Example:
+
+```js
+	var stats = server.WebServer.getStats();
+```
+
+The result is an object in this format:
+
+```js
+{
+	"server": {
+		"uptime": 80,
+		"hostname": "joeretina.local",
+		"ip": "10.1.10.247",
+		"name": "MyServer",
+        "version": "1.0"
+	},
+	"stats": {
+		"total": {
+			"st": "mma",
+			"min": 0.479,
+			"max": 2.57,
+			"total": 11.3748,
+			"count": 11
+		},
+		"read": {
+			"st": "mma",
+			"min": 0.005,
+			"max": 0.071,
+			"total": 0.170,
+			"count": 11
+		},
+		"process": {
+			"st": "mma",
+			"min": 0.123,
+			"max": 0.625,
+			"total": 2.691,
+			"count": 11
+		},
+		"write": {
+			"st": "mma",
+			"min": 0.313,
+			"max": 1.747,
+			"total": 7.679,
+			"count": 11
+		},
+		"bytes_out": 1175,
+		"num_requests": 11,
+		"bytes_in": 0
+	},
+	"sockets": {
+        "c109": {
+            "state": "idle",
+            "ip": "::ffff:127.0.0.1",
+            "proto": "http",
+            "port": 80,
+            "elapsed_ms": 70315,
+            "num_requests": 1,
+            "bytes_in": 172,
+            "bytes_out": 3869
+        },
+		"c110": {
+			"state": "processing",
+			"ip": "::ffff:127.0.0.1",
+			"proto": "http",
+			"port": 80,
+			"elapsed_ms": 0.280054,
+			"num_requests": 38,
+			"bytes_in": 0,
+			"bytes_out": 14659,
+			"ips": [
+				"::ffff:127.0.0.1"
+			],
+			"method": "GET",
+			"uri": "/server-status?pretty=1",
+			"host": "localhost"
+		}
+	},
+    "recent": [
+		{
+			"when": 1466203237,
+            "proto": "http",
+            "port": 80,
+			"code": 200,
+			"status": "OK",
+			"uri": "/rimfire/native",
+			"host": "localhost",
+			"ips": [
+				"::ffff:127.0.0.1"
+			],
+			"ua": "libwww-perl/6.08",
+			"perf": {
+				"scale": 1000,
+				"perf": {
+					"total": 2.403,
+					"read": 0.02,
+					"process": 0.281,
+					"write": 2.026
+				},
+				"counters": {
+					"bytes_in": 131,
+					"bytes_out": 190,
+					"num_requests": 1
+				}
+			}
+		}
+    ]
+}
+```
+
+## The Server Object
+
+The `server` object contains information about the server as a whole.  The properties include:
+
+| Property | Description |
+|----------|-------------|
+| `hostname` | The hostname of the server. |
+| `ip` | The local IP address of the server. |
+| `name` | The name of your pixl-server instance. |
+| `version` | The version of your pixl-server instance. |
+| `uptime` | The number of seconds since the server was started. |
+
+## The Stats Object
+
+The `stats` object contains real-time performance metrics, representing one whole second of time.  Your server will need to have a constant flow of requests for this to actually show any meaningful data.  The properties include:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `total` | Min/Max/Avg | Total request elapsed time. |
+| `read` | Min/Max/Avg | Total request read time. |
+| `process` | Min/Max/Avg | Total request process time (i.e. custom URI handler). |
+| `write` | Min/Max/Avg | Total request write time. |
+| `bytes_in` | Simple Counter | Total bytes received in the last full second. |
+| `bytes_out` | Simple Counter | Total sent in the last full second. |
+| `num_requests` | Simple Counter | Total requests served in the last full second. |
+
+The object consists of both simple counters, and min/max/avg objects.  The latter is designed to represent specific performance metrics, and we include the minimum, maximum, and a count and total (for computing the average).  Simply divide the total by the count and you'll have the average over the 1.0 seconds of sample time.
+
+The min/max/avg objects are all tagged with an `st` (stat type) key set to `mma` (min/max/avg).  This is simply an identifier for libraries wanting to display or graph the data.
+
+If you add any of your own app's performance metrics via `args.perf`, they will be included in this object as well.  See [Including Custom Stats](#including-custom-stats) below for details.
+
+## The Sockets Object
+
+The `sockets` object contains information about all currently open sockets.  Note that this is an object, not an array.  The keys are internal identifiers, and the values are sub-objects containing the following properties:
+
+| Property | Description |
+|----------|-------------|
+| `state` | The current state of the socket, will be one of: `idle`, `reading`, `processing`, or `writing`. |
+| `ip` | The client IP address connected to the socket (may be a load balancer or proxy). |
+| `proto` | The protocol of the socket, will be `http` or `https`. |
+| `port` | The listening port of the socket, e.g. `80` or `443`. |
+| `elapsed_ms` | The total time the socket has been connected, in milliseconds. |
+| `num_requests` | The total number of requests served by the socket (i.e. keep-alives). |
+| `bytes_in` | The total number of bytes received by the socket. |
+| `bytes_out` | The total number of bytes sent by the socket. |
+| `ips` | If an HTTP request is in progress, this will contain the array of client IPs, including `X-Forwarded-For` IPs. |
+| `method` | If an HTTP request is in progress, this will contain the request method (e.g. `GET`, `POST`, etc.) |
+| `uri` | If an HTTP request is in progress, this will contain the full request URI. |
+| `host` | If an HTTP request is in progress, this will contain the hostname from the URL. |
+
+## The Recent Object
+
+The `recent` array is a sorted list of the last 10 completed requests (most recent first).  Each element of the array is an object containing the following properties:
+
+| Property | Description |
+|----------|-------------|
+| `when` | The date/time of the *completion* of the request, as high-res Epoch seconds. |
+| `proto` | The protocol of the original client request, will be `http` or `https`. |
+| `port` | The listening port of the socket, e.g. `80` or `443`. |
+| `code` | The HTTP response code, e.g. `200` or `404`. |
+| `status` | The HTTP response status message, e.g. `OK` or `File Not Found`. |
+| `uri` | The full request URI including query string. |
+| `host` | The hostname from the request URL. |
+| `ips` | The array of client IPs, including `X-Forwarded-For` IPs. |
+| `ua` | The client's `User-Agent` string. |
+| `perf` | A [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance metrics object containing stats for the request. |
+
+If you would like more than 10 requests, set the [http_recent_requests](#http_recent_requests) configuration property to the number you want.
+
+## Including Custom Stats
+
+To include your own application-level metrics in the `getStats()` output, a [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance tracker is made available to your URI handler code via `args.perf`.  you can call `begin()` and `end()` on this object directly, to measure your own operations:
+
+```js
+server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
+	// custom request handler for our URI
+	
+	args.perf.begin('db_query');
+	// Run DB query here
+	args.perf.end('db_query');
+	args.perf.count('my_counter', 1);
+	
+	callback( 
+		"200 OK", 
+		{ 'Content-Type': "text/html" }, 
+		"Hello this is custom content!\n" 
+	);
+} );
+```
+
+Please do not call `begin()` or `end()` without arguments, as that will mess up the existing performance tracking.  Also, make sure you prefix your perf keys so you don't collide with the built-in ones.
+
+Alternatively, you can use your own private [pixl-perf](https://www.npmjs.com/package/pixl-perf) object, and then "import" it into the `args.perf` object at the very end of your handler code, just before you fire the callback.  Example:
+
+```js
+my_perf.end();
+args.perf.import( my_perf, "app_" );
+```
+
+This would import all your metrics and prefix the keys with `app_`.
+
+See the [pixl-perf](https://www.npmjs.com/package/pixl-perf) documentation for more details on how to use the tracker.
+
+## Stats URI Handler
+
+If you want to expose the `getStats()` object as a JSON web service, doing so is very easy.  Just register a URI handler via `addURIHandler()`, and pass the `getStats()` return value to the callback.  Example:
+
+```js
+server.WebServer.addURIHandler( '/server-status', "Server Status", true, function(args, callback) {
+	callback( server.WebServer.getStats() );
+} );
+```
+
+It is recommended that you lock this service down via ACL, as you probably don't want to expose it to the world.  See the [Access Control Lists](#access-control-lists) section for details on using ACLs in your handlers.
 
 # Misc
 
 ## Determining HTTP or HTTPS
 
-To determine if a request is HTTP or HTTPS, check to see if there is an `args.request.headers.ssl` property.  If so, and this is set to a `true` value, then the request was sent in via HTTPS, otherwise you can assume it was HTTP.
+To determine if a request is HTTP or HTTPS, check to see if there is an `args.request.headers.ssl` property.  If this is set to a `true` value, then the request was sent in via HTTPS, otherwise you can assume it was HTTP.
 
-Please note that if you have a load balancer or other proxy handling HTTPS / SSL for you, the final request to the web server may not be HTTPS.  To determine if the *original* request from the client was HTTPS, you may need to sniff for a particular request header, e.g. `Front-End-Https` (used by Amazon ELB).
+Please note that if you have a load balancer or other proxy handling HTTPS / SSL for you, the final request to the web server may not be HTTPS.  To determine if the *original* request from the client was HTTPS, you may need to sniff for a particular request header, e.g. `X-Forwarded-Proto: https` (used by Amazon's ELB).
 
 See the [https_header_detect](#https_header_detect) configuration property for an automatic way to handle this.
 

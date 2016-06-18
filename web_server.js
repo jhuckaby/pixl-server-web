@@ -3,17 +3,18 @@
 // Copyright (c) 2015 - 2016 Joseph Huckaby
 // Released under the MIT License
 
+var fs = require('fs');
+var os = require('os');
+var zlib = require('zlib');
 var Formidable = require('formidable');
 var Querystring = require('querystring');
 var Static = require('node-static');
 var ErrNo = require('errno');
 var Netmask = require('netmask').Netmask;
-var fs = require('fs');
-var os = require('os');
-var zlib = require('zlib');
-
+var StreamMeter = require("stream-meter");
 var Class = require("pixl-class");
 var Component = require("pixl-server/component");
+var Perf = require('pixl-perf');
 
 module.exports = Class.create({
 	
@@ -31,7 +32,9 @@ module.exports = Class.create({
 		http_max_upload_size: 32 * 1024 * 1024,
 		http_temp_dir: os.tmpDir(),
 		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
-		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+		http_log_requests: false,
+		http_recent_requests: 10
 	},
 	
 	conns: null,
@@ -39,6 +42,8 @@ module.exports = Class.create({
 	uriHandlers: null,
 	methodHandlers: null,
 	defaultACL: [],
+	stats: null,
+	recent: null,
 	
 	startup: function(callback) {
 		// start http server
@@ -52,6 +57,11 @@ module.exports = Class.create({
 		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
 		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
 		this.keepAlives = this.config.get('http_keep_alives');
+		this.logRequests = this.config.get('http_log_requests');
+		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('http_regex_log') || '.+' )) : null;
+		this.keepRecentRequests = this.config.get('http_recent_requests');
+		this.stats = { current: {}, last: {} };
+		this.recent = [];
 		
 		// prep static file server
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
@@ -84,6 +94,9 @@ module.exports = Class.create({
 				throw new Error(err_msg);
 			}
 		}
+		
+		// listen for tick events to swap stat buffers
+		this.server.on( 'tick', this.swapStatBuffers.bind(this) );
 		
 		// start listeners
 		this.startHTTP( function() {
@@ -125,6 +138,17 @@ module.exports = Class.create({
 			self.conns[ id ] = socket;
 			self.logDebug(8, "New incoming HTTP connection: " + id, { ip: ip });
 			
+			// add our own metadata to socket
+			socket._pixl_data = {
+				id: id,
+				proto: 'http',
+				port: port,
+				time_start: (new Date()).getTime(),
+				num_requests: 0,
+				bytes_in: 0,
+				bytes_out: 0
+			};
+			
 			socket.on('error', function(err) {
 				// client aborted connection?
 				var msg = err.message;
@@ -135,7 +159,15 @@ module.exports = Class.create({
 			} );
 			
 			socket.on('close', function() {
-				self.logDebug(8, "HTTP connection has closed: " + id, { ip: ip });
+				// socket has closed
+				var now = (new Date()).getTime();
+				self.logDebug(8, "HTTP connection has closed: " + id, {
+					ip: ip,
+					total_elapsed: now - socket._pixl_data.time_start,
+					num_requests: socket._pixl_data.num_requests,
+					bytes_in: socket._pixl_data.bytes_in,
+					bytes_out: socket._pixl_data.bytes_out
+				});
 				delete self.conns[ id ];
 			} );
 		} );
@@ -185,6 +217,17 @@ module.exports = Class.create({
 			self.conns[ id ] = socket;
 			self.logDebug(8, "New incoming HTTPS (SSL) connection: " + id, { ip: ip });
 			
+			// add our own metadata to socket
+			socket._pixl_data = {
+				id: id,
+				proto: 'https',
+				port: port,
+				time_start: (new Date()).getTime(),
+				num_requests: 0,
+				bytes_in: 0,
+				bytes_out: 0
+			};
+			
 			socket.on('error', function(err) {
 				// client aborted connection?
 				var msg = err.message;
@@ -195,7 +238,15 @@ module.exports = Class.create({
 			} );
 			
 			socket.on('close', function() {
-				self.logDebug(8, "HTTPS (SSL) connection has closed: " + id, { ip: ip });
+				// socket has closed
+				var now = (new Date()).getTime();
+				self.logDebug(8, "HTTPS (SSL) connection has closed: " + id, {
+					ip: ip,
+					total_elapsed: now - socket._pixl_data.time_start,
+					num_requests: socket._pixl_data.num_requests,
+					bytes_in: socket._pixl_data.bytes_in,
+					bytes_out: socket._pixl_data.bytes_out
+				});
 				delete self.conns[ id ];
 			} );
 		} );
@@ -285,7 +336,10 @@ module.exports = Class.create({
 		var ip = this.getPublicIP(ips);
 		var args = {};
 		
-		this.logDebug(8, "New HTTP request: " + request.method + " " + request.url + " (" + ips.join(', ') + ")");
+		this.logDebug(8, "New HTTP request: " + request.method + " " + request.url + " (" + ips.join(', ') + ")", {
+			socket: request.socket._pixl_data.id,
+			version: request.httpVersion
+		});
 		this.logDebug(9, "Incoming HTTP Headers:", request.headers);
 		
 		// detect front-end https
@@ -319,6 +373,22 @@ module.exports = Class.create({
 		args.params = params;
 		args.files = files;
 		args.server = this;
+		args.state = 'reading';
+		
+		// track performance of request
+		args.perf = new Perf();
+		args.perf.begin();
+		args.perf.begin('read');
+		
+		// we have to guess at the http raw status + raw header size
+		// as Node's http.js has already parsed it
+		var raw_bytes_read = 0;
+		raw_bytes_read += [request.method, request.url, 'HTTP/' + request.httpVersion + "\r\n"].join(' ').length;
+		raw_bytes_read += request.rawHeaders.join("\r\n").length + 4; // CRLFx2
+		args.perf.count('bytes_in', raw_bytes_read);
+		
+		// track current request in socket metadata
+		request.socket._pixl_data.current = args;
 		
 		// post or get/head
 		if (request.method == 'POST') {
@@ -334,9 +404,11 @@ module.exports = Class.create({
 				
 				form.on('progress', function(bytesReceived, bytesExpected) {
 					self.logDebug(10, "Upload progress: " + bytesReceived + " of " + bytesExpected + " bytes");
+					args.perf.count('bytes_in', bytesReceived);
 				} );
 				
 				form.parse(request, function(err, _fields, _files) {
+					args.perf.end('read');
 					if (err) {
 						self.logError("http", "Error processing POST from: " + ip + ": " + request.url + ": " + err);
 						self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
@@ -360,6 +432,7 @@ module.exports = Class.create({
 					// receive data chunk
 					chunks.push( chunk );
 					total_bytes += chunk.length;
+					args.perf.count('bytes_in', chunk.length);
 					
 					self.logDebug(10, "Upload progress: " + total_bytes + " of " + bytesExpected + " bytes");
 					if (total_bytes > bytesMax) {
@@ -389,12 +462,14 @@ module.exports = Class.create({
 					}
 					
 					// now we can handle the full request
+					args.perf.end('read');
 					self.handleHTTPRequest(args);
 				} );
 			}
 		} // post
 		else {
 			// non-post, i.e. get or head, handle right away
+			args.perf.end('read');
 			this.handleHTTPRequest(args);
 		}
 	},
@@ -404,6 +479,9 @@ module.exports = Class.create({
 		var self = this;
 		var uri = args.request.url.replace(/\?.*$/, '');
 		var handler = null;
+		
+		args.state = 'processing';
+		args.perf.begin('process');
 		
 		// check method handlers first, e.g. OPTIONS
 		for (var idx = 0, len = this.methodHandlers.length; idx < len; idx++) {
@@ -474,6 +552,7 @@ module.exports = Class.create({
 				else {
 					// nope
 					this.logError('acl', "IP address rejected by ACL: " + bad_ip, args.ips);
+					args.perf.end('process');
 					
 					this.sendHTTPResponse( 
 						args, 
@@ -491,6 +570,7 @@ module.exports = Class.create({
 				// custom handler complete, send response
 				if ((arguments.length == 3) && (typeof(arguments[0]) == "string")) {
 					// handler sent status, headers and body
+					args.perf.end('process');
 					self.sendHTTPResponse( args, arguments[0], arguments[1], arguments[2] );
 				}
 				else if (arguments[0] === true) {
@@ -500,15 +580,18 @@ module.exports = Class.create({
 				else if (arguments[0] === false) {
 					// false means handler did nothing, fall back to static
 					self.logDebug(9, "Handler declined, falling back to static file");
+					args.perf.end('process');
 					self.sendStaticResponse( args );
 				}
 				else if (typeof(arguments[0]) == "object") {
 					// REST-style JSON response
 					var json = arguments[0];
 					self.logDebug(10, "API Response JSON:", json);
+					args.perf.end('process');
 					
 					var status = arguments[1] || "200 OK";
 					var headers = arguments[2] || {};
+					var payload = args.query.pretty ? JSON.stringify(json, null, "\t") : JSON.stringify(json);
 					
 					if (args.query.format && (args.query.format.match(/html/i)) && args.query.callback) {
 						// old school IFRAME style response
@@ -518,7 +601,7 @@ module.exports = Class.create({
 							status, 
 							headers, 
 							'<html><head><script>' + 
-								args.query.callback + "(" + JSON.stringify( json ) + ");\n" + 
+								args.query.callback + "(" + payload + ");\n" + 
 								'</script></head><body>&nbsp;</body></html>' + "\n"
 						);
 					}
@@ -529,7 +612,7 @@ module.exports = Class.create({
 							args, 
 							status, 
 							headers, 
-							args.query.callback + "(" + JSON.stringify( json ) + ");\n"
+							args.query.callback + "(" + payload + ");\n"
 						);
 					}
 					else {
@@ -539,7 +622,7 @@ module.exports = Class.create({
 							args, 
 							status, 
 							headers, 
-							JSON.stringify( json ) + "\n"
+							payload + "\n"
 						);
 					} // pure json
 				} // json response
@@ -559,6 +642,7 @@ module.exports = Class.create({
 		} // uri handler
 		else {
 			// no uri handler, serve static file instead
+			args.perf.end('process');
 			this.sendStaticResponse( args );
 			
 			// delete temp files
@@ -583,26 +667,52 @@ module.exports = Class.create({
 		var response = args.response;
 		this.logDebug(9, "Serving static file for: " + args.request.url);
 		
+		args.state = 'writing';
+		args.perf.begin('write');
+		
 		response.on('finish', function() {
 			// response actually completed writing
 			self.logDebug(9, "Response finished writing to socket");
+			args.perf.end('write');
+			self.finishRequest(args);
 			
 			// HTTP Keep-Alive: only if enabled in config, and requested by client
 			if (!self.keepAlives || !request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
 				// close socket
+				self.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
 				request.socket.destroy();
+			}
+			else {
+				self.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
 			}
 		} );
 		
 		this.fileServer.serve(request, response, function(err, result) {
+			var headers = null;
 			if (err) {
-				self.logError("http", "Error serving static file: " + request.url + ": " + err.message);
+				self.logError("http", "Error serving static file: " + request.url + ": HTTP " + err.status + ' ' + err.message);
+				args.http_code = err.status;
+				args.http_status = err.message;
+				headers = err.headers;
+				
 				response.writeHead(err.status, err.headers);
 				response.end();
 			}
 			else {
-				self.logDebug(8, "Static HTTP response sent: " + result.status, result.headers);
+				self.logDebug(8, "Static HTTP response sent: HTTP " + result.status, result.headers);
+				args.perf.count('bytes_out', result.headers['Content-Length'] || 0);
+				
+				args.http_code = result.status;
+				args.http_status = "OK";
+				headers = result.headers;
 			}
+			
+			// guess number of bytes in response header, minus data payload
+			args.perf.count('bytes_out', ("HTTP " + args.http_code + " OK\r\n").length);
+			for (var key in headers) {
+				args.perf.count('bytes_out', (key + ": " + headers[key] + "\r\n").length);
+			}
+			args.perf.count('bytes_out', 4); // CRLFx2
 		});
 	},
 	
@@ -612,6 +722,12 @@ module.exports = Class.create({
 		var request = args.request;
 		var response = args.response;
 		if (!headers) headers = {};
+		
+		// in case the URI handler called sendHTTPResponse() directly, end the process metric
+		if (!args.perf.perf.process.end) args.perf.end('process');
+		
+		args.state = 'writing';
+		args.perf.begin('write');
 		
 		// merge in default response headers
 		var default_headers = this.config.get('http_response_headers') || null;
@@ -631,6 +747,8 @@ module.exports = Class.create({
 			http_code = parseInt( RegExp.$1 );
 			http_status = RegExp.$2;
 		}
+		args.http_code = http_code;
+		args.http_status = http_status;
 		
 		// use duck typing to see if we have a stream, buffer or string
 		var is_stream = (body && body.pipe);
@@ -647,14 +765,35 @@ module.exports = Class.create({
 			headers['Content-Length'] = body.length;
 		}
 		
+		// track stream bytes, if applicable
+		var meter = null;
+		
 		response.on('finish', function() {
 			// response actually completed writing
 			self.logDebug(9, "Response finished writing to socket");
 			
+			// guess number of bytes in response header, minus data payload
+			args.perf.count('bytes_out', ("HTTP " + args.http_code + " OK\r\n").length);
+			for (var key in headers) {
+				args.perf.count('bytes_out', (key + ": " + headers[key] + "\r\n").length);
+			}
+			args.perf.count('bytes_out', 4); // CRLFx2
+			
+			// add metered bytes if streamed
+			if (meter) args.perf.count('bytes_out', meter.bytes || 0);
+			
+			// done writing
+			args.perf.end('write');
+			self.finishRequest(args);
+			
 			// HTTP Keep-Alive: only if enabled in config, and requested by client
 			if (!self.keepAlives || !request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
 				// close socket
+				self.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
 				request.socket.destroy();
+			}
+			else {
+				self.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
 			}
 		} );
 		
@@ -679,7 +818,9 @@ module.exports = Class.create({
 				response.writeHead( http_code, http_status, headers );
 				
 				var gzip = zlib.createGzip( self.config.get('http_gzip_opts') || {} );
-				body.pipe( gzip ).pipe( response );
+				meter = new StreamMeter();
+				
+				body.pipe( gzip ).pipe( meter ).pipe( response );
 				
 				self.logDebug(9, "Request complete");
 			}
@@ -705,6 +846,7 @@ module.exports = Class.create({
 					response.write( data );
 					response.end();
 					
+					args.perf.count('bytes_out', data.length);
 					self.logDebug(9, "Request complete");
 				}); // zlib.gzip
 			} // buffer or string
@@ -714,18 +856,155 @@ module.exports = Class.create({
 			if (is_stream) {
 				this.logDebug(9, "Sending streaming HTTP response: " + status, headers);
 				response.writeHead( http_code, http_status, headers );
-				body.pipe( response );
+				meter = new StreamMeter();
+				body.pipe( meter ).pipe( response );
 			}
 			else {
 				this.logDebug(9, "Sending HTTP response: " + status, headers);
 				
 				// send data
 				response.writeHead( http_code, http_status, headers );
-				if (body) response.write( body );
+				if (body) {
+					response.write( body );
+					args.perf.count('bytes_out', body.length);
+				}
 				response.end();
 			}
 			this.logDebug(9, "Request complete");
 		}
+	},
+	
+	finishRequest: function(args) {
+		// finish up request tracking
+		args.perf.count('num_requests', 1);
+		args.perf.end();
+		
+		var socket_data = args.request.socket._pixl_data;
+		var metrics = args.perf.metrics();
+		
+		this.logDebug(9, "Request performance metrics:", metrics);
+		
+		// write to access log
+		if (this.logRequests && args.request.url.match(this.regexLogRequests)) {
+			this.logTransaction( 'HTTP ' + args.http_code + ' ' + args.http_status, args.request.url, {
+				proto: args.request.headers['ssl'] ? 'https' : socket_data.proto,
+				ips: args.ips,
+				host: args.request.headers['host'] || '',
+				ua: args.request.headers['user-agent'] || '',
+				perf: metrics
+			} );
+		}
+		
+		// keep a list of the most recent N requests
+		if (this.keepRecentRequests) {
+			this.recent.unshift({
+				when: (new Date()).getTime() / 1000,
+				proto: args.request.headers['ssl'] ? 'https' : socket_data.proto,
+				port: socket_data.port,
+				code: args.http_code,
+				status: args.http_status,
+				uri: args.request.url,
+				ips: args.ips,
+				host: args.request.headers['host'] || '',
+				ua: args.request.headers['user-agent'] || '',
+				perf: metrics
+			});
+			if (this.recent.length > this.keepRecentRequests) this.recent.pop();
+		}
+		
+		// add metrics to socket
+		socket_data.num_requests++;
+		socket_data.bytes_in += metrics.counters.bytes_in || 0;
+		socket_data.bytes_out += metrics.counters.bytes_out || 0;
+		
+		// add metrics to stats system
+		var stats = this.stats.current;
+		
+		for (var key in metrics.perf) {
+			var elapsed = metrics.perf[key];
+			if (!stats[key]) {
+				stats[key] = {
+					'st': 'mma', // stat type: "min max avg"
+					'min': elapsed,
+					'max': elapsed,
+					'total': elapsed,
+					'count': 1
+				};
+			}
+			else {
+				var stat = stats[key];
+				if (elapsed < stat.min) stat.min = elapsed;
+				else if (elapsed > stat.max) stat.max = elapsed;
+				stat.total += elapsed;
+				stat.count++;
+			}
+		}
+		
+		for (var key in metrics.counters) {
+			var amount = metrics.counters[key];
+			if (!stats[key]) stats[key] = 0;
+			stats[key] += amount;
+		}
+		
+		// remove reference to current request
+		delete socket_data.current;
+	},
+	
+	swapStatBuffers: function() {
+		// swap current and last stat buffers
+		// called every 1s via server tick event
+		this.stats.last = this.stats.current;
+		this.stats.current = {};
+	},
+	
+	getStats: function() {
+		// get current stats, merged with live socket and request info
+		var socket_info = {};
+		var now = (new Date()).getTime();
+		
+		for (var key in this.conns) {
+			var socket = this.conns[key];
+			var socket_data = socket._pixl_data;
+			var info = {
+				state: 'idle',
+				ip: socket.remoteAddress,
+				proto: socket_data.proto,
+				port: socket_data.port,
+				elapsed_ms: now - socket_data.time_start,
+				num_requests: socket_data.num_requests,
+				bytes_in: socket_data.bytes_in,
+				bytes_out: socket_data.bytes_out
+			};
+			if (socket_data.current) {
+				// current request in progress, merge this in
+				var args = socket_data.current;
+				info.ips = args.ips;
+				info.state = args.state;
+				info.method = args.request.method;
+				info.uri = args.request.url;
+				info.host = args.request.headers['host'] || '';
+				info.elapsed_ms = args.perf.calcElapsed( args.perf.perf.total.start );
+			}
+			socket_info[key] = info;
+		}
+		
+		var stats = this.stats.last;
+		if (!stats.num_requests) stats.num_requests = 0;
+		if (!stats.bytes_in) stats.bytes_in = 0;
+		if (!stats.bytes_out) stats.bytes_out = 0;
+		
+		return {
+			server: {
+				uptime_sec: Math.floor(now / 1000) - this.server.started,
+				hostname: this.server.hostname,
+				ip: this.server.ip,
+				name: this.server.__name,
+				version: this.server.__version
+			},
+			stats: stats,
+			sockets: socket_info,
+			recent: this.recent
+		};
 	},
 	
 	getAllClientIPs: function(request) {
