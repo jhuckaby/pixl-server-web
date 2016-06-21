@@ -993,6 +993,10 @@ module.exports = Class.create({
 		if (!stats.bytes_in) stats.bytes_in = 0;
 		if (!stats.bytes_out) stats.bytes_out = 0;
 		
+		['total', 'read', 'process', 'write'].forEach( function(key) {
+			if (!stats[key]) stats[key] = { "st": "mma", "min": 0, "max": 0, "total": 0, "count": 0 };
+		} );
+		
 		return {
 			server: {
 				uptime_sec: Math.floor(now / 1000) - this.server.started,
