@@ -174,7 +174,7 @@ module.exports = Class.create({
 		
 		this.http.listen( port, function(err) {
 			if (err) {
-				self.logError('http', "Failed to start HTTP listener: " + err.message);
+				self.logError('startup', "Failed to start HTTP listener: " + err.message);
 				throw err;
 				return;
 			}
@@ -253,7 +253,7 @@ module.exports = Class.create({
 		
 		this.https.listen( port, function(err) {
 			if (err) {
-				self.logError('http', "Failed to start HTTPS listener: " + err.message);
+				self.logError('startup', "Failed to start HTTPS listener: " + err.message);
 				throw err;
 				return;
 			}
@@ -410,7 +410,7 @@ module.exports = Class.create({
 				form.parse(request, function(err, _fields, _files) {
 					args.perf.end('read');
 					if (err) {
-						self.logError("http", "Error processing POST from: " + ip + ": " + request.url + ": " + err);
+						self.logError(400, "Error processing POST from: " + ip + ": " + request.url + ": " + err);
 						self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
 						return;
 					}
@@ -436,7 +436,7 @@ module.exports = Class.create({
 					
 					self.logDebug(10, "Upload progress: " + total_bytes + " of " + bytesExpected + " bytes");
 					if (total_bytes > bytesMax) {
-						self.logError("http", "Error processing POST from: " + ip + ": " + request.url + ": Max POST size exceeded");
+						self.logError(413, "Error processing POST from: " + ip + ": " + request.url + ": Max POST size exceeded");
 						request.socket.end();
 						return;
 					}
@@ -451,7 +451,7 @@ module.exports = Class.create({
 							args.params = JSON.parse( body.toString() );
 						}
 						catch (e) {
-							self.logError("http", "Error processing POST from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e);
+							self.logError(400, "Error processing POST from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e);
 							self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
 							return;
 						}
@@ -551,7 +551,7 @@ module.exports = Class.create({
 				}
 				else {
 					// nope
-					this.logError('acl', "IP address rejected by ACL: " + bad_ip, args.ips);
+					this.logError(403, "IP address rejected by ACL: " + bad_ip, args.ips);
 					args.perf.end('process');
 					
 					this.sendHTTPResponse( 
@@ -690,7 +690,7 @@ module.exports = Class.create({
 		this.fileServer.serve(request, response, function(err, result) {
 			var headers = null;
 			if (err) {
-				self.logError("http", "Error serving static file: " + request.url + ": HTTP " + err.status + ' ' + err.message);
+				self.logError(err.status, "Error serving static file: " + request.url + ": HTTP " + err.status + ' ' + err.message);
 				args.http_code = err.status;
 				args.http_status = err.message;
 				headers = err.headers;
@@ -828,7 +828,7 @@ module.exports = Class.create({
 				zlib.gzip(body, self.config.get('http_gzip_opts') || {}, function(err, data) {
 					if (err) {
 						// should never happen
-						self.logError('http', "Failed to gzip compress content: " + err);
+						self.logError('gzip', "Failed to gzip compress content: " + err);
 						data = body;
 					}
 					else {
