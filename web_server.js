@@ -997,6 +997,13 @@ module.exports = Class.create({
 			if (!stats[key]) stats[key] = { "st": "mma", "min": 0, "max": 0, "total": 0, "count": 0 };
 		} );
 		
+		for (var key in stats) {
+			var stat = stats[key];
+			if ((stat.st == "mma") && ("total" in stat) && ("count" in stat)) {
+				stat.avg = stat.total / (stat.count || 1);
+			}
+		}
+		
 		return {
 			server: {
 				uptime_sec: Math.floor(now / 1000) - this.server.started,
