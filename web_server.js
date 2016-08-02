@@ -690,7 +690,12 @@ module.exports = Class.create({
 		this.fileServer.serve(request, response, function(err, result) {
 			var headers = null;
 			if (err) {
-				self.logError(err.status, "Error serving static file: " + request.url + ": HTTP " + err.status + ' ' + err.message);
+				self.logError(err.status, "Error serving static file: " + request.url + ": HTTP " + err.status + ' ' + err.message, {
+					ips: args.ips,
+					useragent: request.headers['user-agent'] || '',
+					referrer: request.headers['referer'] || '',
+					url: self.getSelfURL(request, request.url)
+				});
 				args.http_code = err.status;
 				args.http_status = err.message;
 				headers = err.headers;
