@@ -72,6 +72,15 @@ module.exports = Class.create({
 			indexFile: this.config.get('http_static_index')
 		} );
 		
+		// special file server for internal redirects
+		this.internalFileServer = new Static.Server( '/', {
+			cache: this.config.get('http_static_ttl'),
+			serverInfo: this.config.get('http_server_signature') || this.__name,
+			gzip: this.config.get('http_gzip_text') ? this.regexTextContent : false,
+			headers: JSON.parse( JSON.stringify(this.config.get('http_response_headers') || {}) ),
+			indexFile: this.config.get('http_static_index')
+		} );
+		
 		// front-end https header detection
 		var ssl_headers = this.config.get('https_header_detect');
 		if (ssl_headers) {
@@ -277,6 +286,7 @@ module.exports = Class.create({
 		// Calling conventions:
 		//		uri, name, callback
 		//		uri, name, acl, callback
+		var self = this;
 		var uri = arguments[0];
 		var name = arguments[1];
 		var acl = false;
@@ -311,6 +321,17 @@ module.exports = Class.create({
 		if (typeof(uri) == 'string') {
 			uri = new RegExp("^" + uri + "$");
 		}
+		
+		// special case: pass string as callback for internal file redirect
+		if (typeof(callback) == 'string') {
+			var target_file = callback;
+			callback = function(args, cb) {
+				self.logDebug(9, "Performing internal redirect to: " + target_file);
+				args.internalFile = target_file;
+				cb(false);
+			};
+		}
+		
 		this.uriHandlers.push({
 			regexp: uri,
 			name: name,
@@ -687,7 +708,7 @@ module.exports = Class.create({
 			}
 		} );
 		
-		this.fileServer.serve(request, response, function(err, result) {
+		var handleFileServerResponse = function(err, result) {
 			var headers = null;
 			if (err) {
 				self.logError(err.status, "Error serving static file: " + request.url + ": HTTP " + err.status + ' ' + err.message, {
@@ -701,6 +722,7 @@ module.exports = Class.create({
 				headers = err.headers;
 				
 				response.writeHead(err.status, err.headers);
+				response.write( "Error: HTTP " + err.status + ' ' + err.message + "\n" );
 				response.end();
 			}
 			else {
@@ -718,7 +740,16 @@ module.exports = Class.create({
 				args.perf.count('bytes_out', (key + ": " + headers[key] + "\r\n").length);
 			}
 			args.perf.count('bytes_out', 4); // CRLFx2
-		});
+		};
+		
+		if (args.internalFile) {
+			// special case, serve up any specified file as surrogage (internal redirect)
+			request.url = args.internalFile;
+			this.internalFileServer.serve(request, response, handleFileServerResponse);
+		}
+		else {
+			this.fileServer.serve(request, response, handleFileServerResponse);
+		}
 	},
 	
 	sendHTTPResponse: function(args, status, headers, body) {

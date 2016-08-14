@@ -264,6 +264,16 @@ The ACL code scans *all* the IP addresses from the client, including the socket 
 
 If a request is rejected, your handler isn't even called.  Instead, a standard `HTTP 403 Forbidden` response is sent to the client, and an error is logged.
 
+## Internal File Redirects
+
+To setup an internal file redirect, you can substitute the final callback function for a string, pointing to a fully-qualified filesystem path.  The target file will be served up in place of the original URI.  You can also combine this with an ACL for extra protection for private files.  Example:
+
+```js
+server.WebServer.addURIHandler( /^\/secret.txt$/, "Special Secrets", true, '/private/myapp/docs/secret.txt' );
+```
+
+Note that the `Content-Type` response header is automatically set based on the target file you are redirecting to.
+
 ## Sending Responses
 
 There are actually four different ways you can send an HTTP response.  They are all detailed below:
@@ -366,6 +376,16 @@ server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, 
 ```
 
 Note that there is currently no logic to fallback to other custom URI handlers.  The only fallback logic, if a handler returns false, is to lookup a static file on disk.
+
+To perform an internal file redirect from inside your URI handler code, set the `internalFile` property of the `args` object to your destination filesystem path, then pass `false` to the callback:
+
+```js
+server.WebServer.addURIHandler( '/intredir', "Internal Redirect", true, function(args, callback) {
+	// perform internal redirect to custom file
+	args.internalFile = '/private/myapp/docs/secret.txt';
+	callback(false);
+} );
+```
 
 ## args
 
