@@ -34,10 +34,12 @@ module.exports = Class.create({
 		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
 		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
 		http_log_requests: false,
-		http_recent_requests: 10
+		http_recent_requests: 10,
+		http_max_connections: 0
 	},
 	
 	conns: null,
+	numConns: 0,
 	nextId: 1,
 	uriHandlers: null,
 	methodHandlers: null,
@@ -121,6 +123,8 @@ module.exports = Class.create({
 		// start http server
 		var self = this;
 		var port = this.config.get('http_port');
+		var max_conns = this.config.get('http_max_connections') || 0;
+		
 		this.logDebug(2, "Starting HTTP server on port: " + port);
 		
 		this.http = require('http').createServer( function(request, response) {
@@ -143,9 +147,20 @@ module.exports = Class.create({
 		
 		this.http.on('connection', function(socket) {
 			var ip = socket.remoteAddress || '';
+			
+			if (max_conns && (self.numConns >= max_conns)) {
+				// reached maximum concurrent connections, abort new ones
+				self.logError('maxconns', "Maximum concurrent connections reached, denying request from: " + ip, { ip: ip, max: max_conns });
+				socket.end();
+				socket.unref();
+				socket.destroy();
+				return;
+			}
+			
 			var id = self.getNextId('c');
 			self.conns[ id ] = socket;
-			self.logDebug(8, "New incoming HTTP connection: " + id, { ip: ip });
+			self.numConns++;
+			self.logDebug(8, "New incoming HTTP connection: " + id, { ip: ip, num_conns: self.numConns });
 			
 			// add our own metadata to socket
 			socket._pixl_data = {
@@ -178,6 +193,7 @@ module.exports = Class.create({
 					bytes_out: socket._pixl_data.bytes_out
 				});
 				delete self.conns[ id ];
+				self.numConns--;
 			} );
 		} );
 		
@@ -205,6 +221,8 @@ module.exports = Class.create({
 		// start https server
 		var self = this;
 		var port = this.config.get('https_port');
+		var max_conns = this.config.get('https_max_connections') || this.config.get('http_max_connections') || 0;
+		
 		this.logDebug(2, "Starting HTTPS (SSL) server on port: " + port);
 		
 		var opts = {
@@ -222,9 +240,20 @@ module.exports = Class.create({
 		
 		this.https.on('connection', function(socket) {
 			var ip = socket.remoteAddress || '';
+			
+			if (max_conns && (self.numConns >= max_conns)) {
+				// reached maximum concurrent connections, abort new ones
+				self.logError('maxconns', "Maximum concurrent connections reached, denying request from: " + ip, { ip: ip, max: max_conns });
+				socket.end();
+				socket.unref();
+				socket.destroy();
+				return;
+			}
+			
 			var id = self.getNextId('cs');
 			self.conns[ id ] = socket;
-			self.logDebug(8, "New incoming HTTPS (SSL) connection: " + id, { ip: ip });
+			self.numConns++;
+			self.logDebug(8, "New incoming HTTPS (SSL) connection: " + id, { ip: ip, num_conns: self.numConns });
 			
 			// add our own metadata to socket
 			socket._pixl_data = {
@@ -257,6 +286,7 @@ module.exports = Class.create({
 					bytes_out: socket._pixl_data.bytes_out
 				});
 				delete self.conns[ id ];
+				self.numConns--;
 			} );
 		} );
 		
@@ -1109,6 +1139,7 @@ module.exports = Class.create({
 				// this.conns[id].destroy();
 				this.conns[id].end();
 				this.conns[id].unref();
+				this.numConns--;
 			}
 			
 			this.http.close( function() { self.logDebug(3, "HTTP server has shut down."); } );
