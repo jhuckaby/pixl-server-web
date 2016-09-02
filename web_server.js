@@ -132,6 +132,10 @@ module.exports = Class.create({
 				self.logDebug(6, "Forcing redirect to HTTPS (SSL)");
 				request.headers.ssl = 1; // force SSL url
 				var redirect_url = self.getSelfURL(request, request.url);
+				if (!redirect_url) {
+					self.sendHTTPResponse( { response: response }, "400 Bad Request", {}, "" );
+					return;
+				}
 				
 				self.sendHTTPResponse( 
 					{ response: response }, 
@@ -745,7 +749,7 @@ module.exports = Class.create({
 					ips: args.ips,
 					useragent: request.headers['user-agent'] || '',
 					referrer: request.headers['referer'] || '',
-					url: self.getSelfURL(request, request.url)
+					url: self.getSelfURL(request, request.url) || request.url
 				});
 				args.http_code = err.status;
 				args.http_status = err.message;
@@ -1110,6 +1114,8 @@ module.exports = Class.create({
 	getSelfURL: function(request, uri) {
 		// build self referencing URL given request object
 		// and optional replacement URI
+		if (!request.headers.host) return null;
+		
 		var ssl = !!request.headers.ssl;
 		var url = ssl ? 'https://' : 'http://';
 		url += request.headers.host.replace(/\:\d+$/, '');
