@@ -606,7 +606,14 @@ module.exports = Class.create({
 				}
 				else {
 					// nope
-					this.logError(403, "IP address rejected by ACL: " + bad_ip, args.ips);
+					this.logError(403, "Forbidden: IP address rejected by ACL: " + bad_ip, {
+						ips: args.ips,
+						useragent: args.request.headers['user-agent'] || '',
+						referrer: args.request.headers['referer'] || '',
+						cookie: args.request.headers['cookie'] || '',
+						url: this.getSelfURL(args.request, args.request.url) || args.request.url
+					});
+					
 					args.perf.end('process');
 					
 					this.sendHTTPResponse( 
@@ -749,6 +756,7 @@ module.exports = Class.create({
 					ips: args.ips,
 					useragent: request.headers['user-agent'] || '',
 					referrer: request.headers['referer'] || '',
+					cookie: request.headers['cookie'] || '',
 					url: self.getSelfURL(request, request.url) || request.url
 				});
 				args.http_code = err.status;
