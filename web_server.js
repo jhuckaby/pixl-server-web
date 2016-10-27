@@ -891,6 +891,26 @@ module.exports = Class.create({
 			}
 		} );
 		
+		// handle stream errors (abort response)
+		if (is_stream) {
+			body.on('error', function(err) {
+				self.logError('stream', "Stream error serving response: " + request.url + ": " + err.message, {
+					ips: args.ips,
+					useragent: request.headers['user-agent'] || '',
+					referrer: request.headers['referer'] || '',
+					cookie: request.headers['cookie'] || '',
+					url: self.getSelfURL(request, request.url) || request.url
+				});
+				
+				args.http_code = 500;
+				args.http_status = "Internal Server Error";
+				args.perf.count('errors', 1);
+				
+				body.unpipe();
+				response.end();
+			});
+		}
+		
 		// auto-gzip response based on content type
 		if (body && 
 			(http_code == 200) && 
