@@ -154,7 +154,15 @@ module.exports = Class.create({
 			
 			if (max_conns && (self.numConns >= max_conns)) {
 				// reached maximum concurrent connections, abort new ones
-				self.logError('maxconns', "Maximum concurrent connections reached, denying request from: " + ip, { ip: ip, max: max_conns });
+				self.logError('maxconns', "Maximum concurrent connections reached, denying connection from: " + ip, { ip: ip, max: max_conns });
+				socket.end();
+				socket.unref();
+				socket.destroy();
+				return;
+			}
+			if (self.server.shut) {
+				// server is shutting down, abort new connections
+				self.logError('shutdown', "Server is shutting down, denying connection from: " + ip, { ip: ip });
 				socket.end();
 				socket.unref();
 				socket.destroy();
@@ -248,6 +256,14 @@ module.exports = Class.create({
 			if (max_conns && (self.numConns >= max_conns)) {
 				// reached maximum concurrent connections, abort new ones
 				self.logError('maxconns', "Maximum concurrent connections reached, denying request from: " + ip, { ip: ip, max: max_conns });
+				socket.end();
+				socket.unref();
+				socket.destroy();
+				return;
+			}
+			if (self.server.shut) {
+				// server is shutting down, abort new connections
+				self.logError('shutdown', "Server is shutting down, denying connection from: " + ip, { ip: ip });
 				socket.end();
 				socket.unref();
 				socket.destroy();
