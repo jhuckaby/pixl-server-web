@@ -30,7 +30,7 @@ module.exports = Class.create({
 		http_static_index: "index.html",
 		http_static_ttl: 0,
 		http_max_upload_size: 32 * 1024 * 1024,
-		http_temp_dir: os.tmpDir(),
+		http_temp_dir: os.tmpdir(),
 		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
 		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
 		http_log_requests: false,
