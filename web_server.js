@@ -818,7 +818,7 @@ module.exports = Class.create({
 		if (!headers) headers = {};
 		
 		// in case the URI handler called sendHTTPResponse() directly, end the process metric
-		if (!args.perf.perf.process.end) args.perf.end('process');
+		if (args.perf.perf.process && !args.perf.perf.process.end) args.perf.end('process');
 		
 		args.state = 'writing';
 		args.perf.begin('write');
