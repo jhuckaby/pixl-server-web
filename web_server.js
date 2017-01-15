@@ -174,6 +174,9 @@ module.exports = Class.create({
 			self.numConns++;
 			self.logDebug(8, "New incoming HTTP connection: " + id, { ip: ip, num_conns: self.numConns });
 			
+			// Disable the Nagle algorithm.
+			socket.setNoDelay( true );
+			
 			// add our own metadata to socket
 			socket._pixl_data = {
 				id: id,
@@ -274,6 +277,9 @@ module.exports = Class.create({
 			self.conns[ id ] = socket;
 			self.numConns++;
 			self.logDebug(8, "New incoming HTTPS (SSL) connection: " + id, { ip: ip, num_conns: self.numConns });
+			
+			// Disable the Nagle algorithm.
+			socket.setNoDelay( true );
 			
 			// add our own metadata to socket
 			socket._pixl_data = {
