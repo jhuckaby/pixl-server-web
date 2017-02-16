@@ -1,6 +1,6 @@
 // Simple HTTP / HTTPS Web Server
 // A component for the pixl-server daemon framework.
-// Copyright (c) 2015 - 2016 Joseph Huckaby
+// Copyright (c) 2015 - 2017 Joseph Huckaby
 // Released under the MIT License
 
 var fs = require('fs');
@@ -58,12 +58,16 @@ module.exports = Class.create({
 		this.regexPrivateIP = new RegExp( this.config.get('http_regex_private_ip') );
 		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
 		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
-		this.keepAlives = this.config.get('http_keep_alives');
 		this.logRequests = this.config.get('http_log_requests');
 		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('http_regex_log') || '.+' )) : null;
 		this.keepRecentRequests = this.config.get('http_recent_requests');
 		this.stats = { current: {}, last: {} };
 		this.recent = [];
+		
+		// keep-alives
+		this.keepAlives = this.config.get('http_keep_alives');
+		if (this.keepAlives === false) this.keepAlives = 0;
+		else if (this.keepAlives === true) this.keepAlives = 1;
 		
 		// prep static file server
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
@@ -107,7 +111,7 @@ module.exports = Class.create({
 		}
 		
 		// listen for tick events to swap stat buffers
-		this.server.on( 'tick', this.swapStatBuffers.bind(this) );
+		this.server.on( 'tick', this.tick.bind(this) );
 		
 		// start listeners
 		this.startHTTP( function() {
@@ -157,7 +161,7 @@ module.exports = Class.create({
 				self.logError('maxconns', "Maximum concurrent connections reached, denying connection from: " + ip, { ip: ip, max: max_conns });
 				socket.end();
 				socket.unref();
-				socket.destroy();
+				socket.destroy(); // hard close
 				return;
 			}
 			if (self.server.shut) {
@@ -165,7 +169,7 @@ module.exports = Class.create({
 				self.logError('shutdown', "Server is shutting down, denying connection from: " + ip, { ip: ip });
 				socket.end();
 				socket.unref();
-				socket.destroy();
+				socket.destroy(); // hard close
 				return;
 			}
 			
@@ -253,7 +257,7 @@ module.exports = Class.create({
 			self.parseHTTPRequest( request, response );
 		} );
 		
-		this.https.on('connection', function(socket) {
+		this.https.on('secureConnection', function(socket) {
 			var ip = socket.remoteAddress || '';
 			
 			if (max_conns && (self.numConns >= max_conns)) {
@@ -261,7 +265,7 @@ module.exports = Class.create({
 				self.logError('maxconns', "Maximum concurrent connections reached, denying request from: " + ip, { ip: ip, max: max_conns });
 				socket.end();
 				socket.unref();
-				socket.destroy();
+				socket.destroy(); // hard close
 				return;
 			}
 			if (self.server.shut) {
@@ -269,7 +273,7 @@ module.exports = Class.create({
 				self.logError('shutdown', "Server is shutting down, denying connection from: " + ip, { ip: ip });
 				socket.end();
 				socket.unref();
-				socket.destroy();
+				socket.destroy(); // hard close
 				return;
 			}
 			
@@ -759,16 +763,6 @@ module.exports = Class.create({
 			self.logDebug(9, "Response finished writing to socket");
 			args.perf.end('write');
 			self.finishRequest(args);
-			
-			// HTTP Keep-Alive: only if enabled in config, and requested by client
-			if (!self.keepAlives || !request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
-				// close socket
-				self.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
-				request.socket.destroy();
-			}
-			else {
-				self.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
-			}
 		} );
 		
 		var handleFileServerResponse = function(err, result) {
@@ -885,16 +879,6 @@ module.exports = Class.create({
 			// done writing
 			args.perf.end('write');
 			self.finishRequest(args);
-			
-			// HTTP Keep-Alive: only if enabled in config, and requested by client
-			if (!self.keepAlives || !request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
-				// close socket
-				self.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
-				request.socket.destroy();
-			}
-			else {
-				self.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
-			}
 		} );
 		
 		// handle stream errors (abort response)
@@ -1068,9 +1052,46 @@ module.exports = Class.create({
 		
 		// remove reference to current request
 		delete socket_data.current;
+		
+		// Handle HTTP Keep-Alives
+		var request = args.request;
+		
+		switch (this.keepAlives) {
+			case 0:
+			case 'close':
+				// KA disabled, always close
+				this.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
+				request.socket.end(); // close nicely
+			break;
+			
+			case 1:
+			case 'request':
+				// KA enabled only if client explicitly requests it
+				if (!request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
+					// close socket
+					this.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
+					request.socket.end(); // close nicely
+				}
+				else {
+					this.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
+				}
+			break;
+			
+			case 2:
+			case 'default':
+				// KA enabled by default, only disable if client says close
+				if (request.headers.connection && request.headers.connection.match(/close/i)) {
+					this.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
+					request.socket.end(); // close nicely
+				}
+				else {
+					this.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
+				}
+			break;
+		}
 	},
 	
-	swapStatBuffers: function() {
+	tick: function() {
 		// swap current and last stat buffers
 		// called every 1s via server tick event
 		this.stats.last = this.stats.current;
@@ -1170,8 +1191,12 @@ module.exports = Class.create({
 		var url = ssl ? 'https://' : 'http://';
 		url += request.headers.host.replace(/\:\d+$/, '');
 		
-		if (ssl && (this.config.get('https_port') != 443)) url += ':' + this.config.get('https_port');
-		else if (!ssl && (this.config.get('http_port') != 80)) url += ':' + this.config.get('http_port');
+		if (ssl && this.config.get('https_port') && (this.config.get('https_port') != 443)) {
+			url += ':' + this.config.get('https_port');
+		}
+		else if (!ssl && this.config.get('http_port') && (this.config.get('http_port') != 80)) {
+			url += ':' + this.config.get('http_port');
+		}
 		
 		url += (uri || '/');
 		
@@ -1214,4 +1239,3 @@ function ucfirst(text) {
 	// capitalize first character only, lower-case rest
 	return text.substring(0, 1).toUpperCase() + text.substring(1, text.length).toLowerCase();
 };
-
