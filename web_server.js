@@ -815,7 +815,10 @@ module.exports = Class.create({
 		var self = this;
 		var request = args.request;
 		var response = args.response;
-		if (!headers) headers = {};
+		
+		// copy headers object so we don't clobber user data
+		if (headers) headers = Object.assign({}, headers);
+		else headers = {};
 		
 		// in case the URI handler called sendHTTPResponse() directly, end the process metric
 		if (args.perf.perf.process && !args.perf.perf.process.end) args.perf.end('process');
