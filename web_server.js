@@ -21,6 +21,8 @@ module.exports = Class.create({
 	__name: 'WebServer',
 	__parent: Component,
 	
+	version: require( __dirname + '/package.json' ).version,
+	
 	defaultConfig: {
 		http_regex_private_ip: "(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)",
 		http_regex_text: "(text|javascript|json|css|html)",
@@ -35,7 +37,8 @@ module.exports = Class.create({
 		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
 		http_log_requests: false,
 		http_recent_requests: 10,
-		http_max_connections: 0
+		http_max_connections: 0,
+		http_clean_headers: false
 	},
 	
 	conns: null,
@@ -50,6 +53,8 @@ module.exports = Class.create({
 	startup: function(callback) {
 		// start http server
 		var self = this;
+		
+		this.logDebug(2, "pixl-server-web v" + this.version + " starting up");
 		
 		// setup connections and handlers
 		this.conns = {};
@@ -779,9 +784,10 @@ module.exports = Class.create({
 				args.http_status = err.message;
 				headers = err.headers;
 				
-				response.writeHead(err.status, err.headers);
-				response.write( "Error: HTTP " + err.status + ' ' + err.message + "\n" );
-				response.end();
+				if (self.writeHead(args, err.status, err.message, err.headers)) {
+					response.write( "Error: HTTP " + err.status + ' ' + err.message + "\n" );
+					response.end();
+				}
 			}
 			else {
 				self.logDebug(8, "Static HTTP response sent: HTTP " + result.status, result.headers);
@@ -922,14 +928,14 @@ module.exports = Class.create({
 				
 				self.logDebug(9, "Sending streaming HTTP response: " + status, headers);
 				
-				response.writeHead( http_code, http_status, headers );
-				
-				var gzip = zlib.createGzip( self.config.get('http_gzip_opts') || {} );
-				meter = new StreamMeter();
-				
-				body.pipe( gzip ).pipe( meter ).pipe( response );
-				
-				self.logDebug(9, "Request complete");
+				if (self.writeHead( args, http_code, http_status, headers )) {
+					var gzip = zlib.createGzip( self.config.get('http_gzip_opts') || {} );
+					meter = new StreamMeter();
+					
+					body.pipe( gzip ).pipe( meter ).pipe( response );
+					
+					self.logDebug(9, "Request complete");
+				}
 			}
 			else {
 				zlib.gzip(body, self.config.get('http_gzip_opts') || {}, function(err, data) {
@@ -949,12 +955,13 @@ module.exports = Class.create({
 					self.logDebug(9, "Sending HTTP response: " + status, headers);
 					
 					// send data
-					response.writeHead( http_code, http_status, headers );
-					response.write( data );
-					response.end();
-					
-					args.perf.count('bytes_out', data.length);
-					self.logDebug(9, "Request complete");
+					if (self.writeHead( args, http_code, http_status, headers )) {
+						response.write( data );
+						response.end();
+						
+						args.perf.count('bytes_out', data.length);
+						self.logDebug(9, "Request complete");
+					}
 				}); // zlib.gzip
 			} // buffer or string
 		} // gzip
@@ -962,23 +969,42 @@ module.exports = Class.create({
 			// no compression
 			if (is_stream) {
 				this.logDebug(9, "Sending streaming HTTP response: " + status, headers);
-				response.writeHead( http_code, http_status, headers );
-				meter = new StreamMeter();
-				body.pipe( meter ).pipe( response );
+				
+				if (self.writeHead( args, http_code, http_status, headers )) {
+					meter = new StreamMeter();
+					body.pipe( meter ).pipe( response );
+				}
 			}
 			else {
 				this.logDebug(9, "Sending HTTP response: " + status, headers);
 				
 				// send data
-				response.writeHead( http_code, http_status, headers );
-				if (body) {
-					response.write( body );
-					args.perf.count('bytes_out', body.length);
+				if (self.writeHead( args, http_code, http_status, headers )) {
+					if (body) {
+						response.write( body );
+						args.perf.count('bytes_out', body.length);
+					}
+					response.end();
 				}
-				response.end();
 			}
 			this.logDebug(9, "Request complete");
 		}
+	},
+	
+	writeHead: function(args, http_code, http_status, headers) {
+		// wrap call to response.writeHead(), as it can throw
+		var request = args.request;
+		var response = args.response;
+		
+		if (headers && this.config.get('http_clean_headers')) {
+			// prevent bad characters in headers, which can crash node's writeHead() call
+			for (var key in headers) {
+				headers[key] = headers[key].toString().replace(/([\x80-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+			}
+		}
+		
+		response.writeHead( http_code, http_status, headers || {} );
+		return true;
 	},
 	
 	finishRequest: function(args) {
@@ -1233,6 +1259,7 @@ module.exports = Class.create({
 			}
 			// delete this.http;
 		}
+		
 		callback();
 	}
 	
