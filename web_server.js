@@ -405,6 +405,13 @@ module.exports = Class.create({
 		});
 	},
 	
+	removeURIHandler: function(name) {
+		// remove handler for URI given name
+		this.uriHandlers = this.uriHandlers.filter( function(item) {
+			return( item.name != name );
+		} );
+	},
+	
 	addMethodHandler: function(method, name, callback) {
 		// add a handler for an entire request method, e.g. OPTIONS
 		this.logDebug(3, "Adding custom request method handler: " + method + ": " + name);
