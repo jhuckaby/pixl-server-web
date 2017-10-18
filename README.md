@@ -118,11 +118,41 @@ This param allows you to send back any additional custom HTTP headers with each 
 
 ## http_timeout
 
-This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.
+This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.  This also doubles as the Keep-Alive timeout, if that feature is enabled (see below).
 
 ## http_keep_alives
 
-This enables or disables [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persistent_connection) support in the server.  Set this to any true or false value.  It defaults to enabled.  Please note that the client must request a Keep-Alive connection by passing a `Connection: keep-alive` header.
+This controls the [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persistent_connection) behavior in the web server.  There are three possible settings, which should be specified as a string:
+
+### default
+
+```js
+{
+	"http_keep_alives": "default"
+}
+```
+
+This **enables** Keep-Alives for all incoming connections by default, unless the client specifically requests a close connection via a `Connection: close` header.
+
+### request
+
+```js
+{
+	"http_keep_alives": "request"
+}
+```
+
+This **disables** Keep-Alives for all incoming connections by default, unless the client specifically requests a Keep-Alive connection by passing a `Connection: keep-alive` header.
+
+### close
+
+```js
+{
+	"http_keep_alives": "close"
+}
+```
+
+This completely disables Keep-Alives for all connections.  All requests result in the socket being closed after completion, and each socket only serves one single request.
 
 ## http_gzip_opts
 
