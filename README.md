@@ -2,6 +2,77 @@
 
 This module is a component for use in [pixl-server](https://www.npmjs.com/package/pixl-server).  It implements a simple web server with support for both HTTP and HTTPS, serving static files, and hooks for adding custom URI handlers.
 
+# Table of Contents
+
+- [Overview](#overview)
+- [Usage](#usage)
+- [Configuration](#configuration)
+	* [http_port](#http_port)
+	* [http_docs_dir](#http_docs_dir)
+	* [http_max_upload_size](#http_max_upload_size)
+	* [http_temp_dir](#http_temp_dir)
+	* [http_static_ttl](#http_static_ttl)
+	* [http_static_index](#http_static_index)
+	* [http_server_signature](#http_server_signature)
+	* [http_gzip_text](#http_gzip_text)
+	* [http_regex_text](#http_regex_text)
+	* [http_regex_json](#http_regex_json)
+	* [http_response_headers](#http_response_headers)
+	* [http_timeout](#http_timeout)
+	* [http_keep_alives](#http_keep_alives)
+		+ [default](#default)
+		+ [request](#request)
+		+ [close](#close)
+	* [http_gzip_opts](#http_gzip_opts)
+	* [http_default_acl](#http_default_acl)
+	* [http_log_requests](#http_log_requests)
+	* [http_regex_log](#http_regex_log)
+	* [http_recent_requests](#http_recent_requests)
+	* [http_max_connections](#http_max_connections)
+	* [http_clean_headers](#http_clean_headers)
+	* [https](#https)
+	* [https_port](#https_port)
+	* [https_cert_file](#https_cert_file)
+	* [https_key_file](#https_key_file)
+	* [https_force](#https_force)
+	* [https_header_detect](#https_header_detect)
+	* [https_timeout](#https_timeout)
+- [Custom URI Handlers](#custom-uri-handlers)
+	* [Access Control Lists](#access-control-lists)
+	* [Internal File Redirects](#internal-file-redirects)
+	* [Sending Responses](#sending-responses)
+		+ [Standard Response](#standard-response)
+		+ [Custom Response](#custom-response)
+		+ [JSON Response](#json-response)
+		+ [Non-Response](#non-response)
+	* [args](#args)
+		+ [args.request](#argsrequest)
+		+ [args.response](#argsresponse)
+		+ [args.ip](#argsip)
+		+ [args.ips](#argsips)
+		+ [args.query](#argsquery)
+		+ [args.params](#argsparams)
+			- [Standard HTTP POST](#standard-http-post)
+			- [JSON REST POST](#json-rest-post)
+			- [Unknown POST](#unknown-post)
+		+ [args.files](#argsfiles)
+		+ [args.cookies](#argscookies)
+		+ [args.perf](#argsperf)
+		+ [args.server](#argsserver)
+- [Logging](#logging)
+- [Stats](#stats)
+	* [The Server Object](#the-server-object)
+	* [The Stats Object](#the-stats-object)
+	* [The Sockets Object](#the-sockets-object)
+	* [The Recent Object](#the-recent-object)
+	* [Including Custom Stats](#including-custom-stats)
+	* [Stats URI Handler](#stats-uri-handler)
+- [Misc](#misc)
+	* [Determining HTTP or HTTPS](#determining-http-or-https)
+	* [Self-Referencing URLs](#self-referencing-urls)
+	* [Custom Method Handlers](#custom-method-handlers)
+- [License](#license)
+
 # Usage
 
 Use [npm](https://www.npmjs.com/) to install the module:
@@ -617,7 +688,7 @@ The result is an object in this format:
 		"hostname": "joeretina.local",
 		"ip": "10.1.10.247",
 		"name": "MyServer",
-        "version": "1.0"
+		"version": "1.0"
 	},
 	"stats": {
 		"total": {
@@ -653,16 +724,16 @@ The result is an object in this format:
 		"bytes_in": 0
 	},
 	"sockets": {
-        "c109": {
-            "state": "idle",
-            "ip": "::ffff:127.0.0.1",
-            "proto": "http",
-            "port": 80,
-            "elapsed_ms": 70315,
-            "num_requests": 1,
-            "bytes_in": 172,
-            "bytes_out": 3869
-        },
+		"c109": {
+			"state": "idle",
+			"ip": "::ffff:127.0.0.1",
+			"proto": "http",
+			"port": 80,
+			"elapsed_ms": 70315,
+			"num_requests": 1,
+			"bytes_in": 172,
+			"bytes_out": 3869
+		},
 		"c110": {
 			"state": "processing",
 			"ip": "::ffff:127.0.0.1",
@@ -680,11 +751,11 @@ The result is an object in this format:
 			"host": "localhost"
 		}
 	},
-    "recent": [
+	"recent": [
 		{
 			"when": 1466203237,
-            "proto": "http",
-            "port": 80,
+			"proto": "http",
+			"port": 80,
 			"code": 200,
 			"status": "OK",
 			"uri": "/rimfire/native",
@@ -708,7 +779,7 @@ The result is an object in this format:
 				}
 			}
 		}
-    ]
+	]
 }
 ```
 
