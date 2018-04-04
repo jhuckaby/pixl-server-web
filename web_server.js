@@ -1,11 +1,12 @@
 // Simple HTTP / HTTPS Web Server
 // A component for the pixl-server daemon framework.
-// Copyright (c) 2015 - 2017 Joseph Huckaby
+// Copyright (c) 2015 - 2018 Joseph Huckaby
 // Released under the MIT License
 
 var fs = require('fs');
 var os = require('os');
 var zlib = require('zlib');
+var async = require('async');
 var Formidable = require('formidable');
 var Querystring = require('querystring');
 var Static = require('node-static');
@@ -44,6 +45,7 @@ module.exports = Class.create({
 	conns: null,
 	numConns: 0,
 	nextId: 1,
+	uriFilters: null,
 	uriHandlers: null,
 	methodHandlers: null,
 	defaultACL: [],
@@ -58,6 +60,7 @@ module.exports = Class.create({
 		
 		// setup connections and handlers
 		this.conns = {};
+		this.uriFilters = [];
 		this.uriHandlers = [];
 		this.methodHandlers = [];
 		this.regexPrivateIP = new RegExp( this.config.get('http_regex_private_ip') );
@@ -346,6 +349,28 @@ module.exports = Class.create({
 		}
 	},
 	
+	addURIFilter: function(uri, name, callback) {
+		// add custom filter (chainable pre-handler) for URI
+		this.logDebug(3, "Adding custom URI filter: " + uri + ": " + name);
+		
+		if (typeof(uri) == 'string') {
+			uri = new RegExp("^" + uri + "$");
+		}
+		
+		this.uriFilters.push({
+			regexp: uri,
+			name: name,
+			callback: callback
+		});
+	},
+	
+	removeURIFilter: function(name) {
+		// remove filter for URI given name
+		this.uriFilters = this.uriFilters.filter( function(item) {
+			return( item.name != name );
+		} );
+	},
+	
 	addURIHandler: function() {
 		// add custom handler for URI
 		// Calling conventions:
@@ -422,6 +447,13 @@ module.exports = Class.create({
 		});
 	},
 	
+	removeMethodHandler: function(name) {
+		// remove handler for method given name
+		this.methodHandlers = this.methodHandlers.filter( function(item) {
+			return( item.name != name );
+		} );
+	},
+	
 	parseHTTPRequest: function(request, response) {
 		// handle raw http request
 		var self = this;
@@ -468,6 +500,17 @@ module.exports = Class.create({
 		args.server = this;
 		args.state = 'reading';
 		
+		// parse HTTP cookies, if present
+		args.cookies = {};
+		if (request.headers['cookie']) {
+			var pairs = request.headers['cookie'].split(/\;\s*/);
+			for (var idx = 0, len = pairs.length; idx < len; idx++) {
+				if (pairs[idx].match(/^([^\=]+)\=(.*)$/)) {
+					args.cookies[ RegExp.$1 ] = RegExp.$2;
+				}
+			} // foreach cookie
+		} // headers.cookie
+		
 		// track performance of request
 		args.perf = new Perf();
 		args.perf.begin();
@@ -510,7 +553,7 @@ module.exports = Class.create({
 					else {
 						args.params = _fields || {};
 						args.files = _files || {};
-						self.handleHTTPRequest(args);
+						self.filterHTTPRequest(args);
 					}
 				} );
 			}
@@ -556,15 +599,82 @@ module.exports = Class.create({
 					
 					// now we can handle the full request
 					args.perf.end('read');
-					self.handleHTTPRequest(args);
+					self.filterHTTPRequest(args);
 				} );
 			}
 		} // post
 		else {
 			// non-post, i.e. get or head, handle right away
 			args.perf.end('read');
-			this.handleHTTPRequest(args);
+			this.filterHTTPRequest(args);
 		}
+	},
+	
+	filterHTTPRequest: function(args) {
+		// apply URL filters to request, if any, before calling handlers
+		var self = this;
+		
+		// quick early exit: no filters, jump out now
+		if (!this.uriFilters.length) return this.handleHTTPRequest(args);
+		
+		// see which filters need to be applied
+		var uri = args.request.url.replace(/\?.*$/, '');
+		var filters = [];
+		
+		for (var idx = 0, len = this.uriFilters.length; idx < len; idx++) {
+			if (uri.match(this.uriFilters[idx].regexp)) filters.push( this.uriFilters[idx] );
+		}
+		
+		// if no filters matched, another quick early exit
+		if (!filters.length) return this.handleHTTPRequest(args);
+		
+		args.state = 'filtering';
+		
+		// use async to allow filters to run in sequence
+		async.eachSeries( filters,
+			function(filter, callback) {
+				self.logDebug(8, "Invoking filter for request: " + args.request.method + ' ' + uri + ": " + filter.name);
+				
+				args.perf.begin('filter');
+				filter.callback( args, function() {
+					// custom filter complete
+					args.perf.end('filter');
+					
+					if ((arguments.length == 3) && (typeof(arguments[0]) == "string")) {
+						// filter sent status, headers and body
+						self.sendHTTPResponse( args, arguments[0], arguments[1], arguments[2] );
+						return callback("ABORT");
+					}
+					else if (arguments[0] === true) {
+						// true means filter sent the raw response itself
+						self.logDebug(9, "Filter sent custom response");
+						return callback("ABORT");
+					}
+					else if (arguments[0] === false) {
+						// false means filter exited normally
+						self.logDebug(9, "Filter passthru, continuing onward");
+						return callback();
+					}
+					else {
+						// unknown response
+						self.sendHTTPResponse( args, 
+							"500 Internal Server Error", 
+							{ 'Content-Type': "text/html" }, 
+							"500 Internal Server Error: URI filter " + filter.name + " returned unknown data type.\n"
+						);
+						return callback("ABORT");
+					}
+				} );
+			},
+			function(err) {
+				// all filters complete
+				// if a filter handled the response, we're done
+				if (err === "ABORT") return;
+				
+				// otherwise, proceed to handling the request proper (method / URI handlers)
+				self.handleHTTPRequest(args);
+			}
+		); // eachSeries
 	},
 	
 	handleHTTPRequest: function(args) {
@@ -598,17 +708,6 @@ module.exports = Class.create({
 		
 		if (handler) {
 			this.logDebug(6, "Invoking handler for request: " + args.request.method + ' ' + uri + ": " + handler.name);
-			
-			// parse HTTP cookies, if present
-			args.cookies = {};
-			if (args.request.headers['cookie']) {
-				var pairs = args.request.headers['cookie'].split(/\;\s*/);
-				for (var idx = 0, len = pairs.length; idx < len; idx++) {
-					if (pairs[idx].match(/^([^\=]+)\=(.*)$/)) {
-						args.cookies[ RegExp.$1 ] = RegExp.$2;
-					}
-				} // foreach cookie
-			} // headers.cookie
 			
 			// Check ACL here
 			if (handler.acl) {
@@ -654,8 +753,7 @@ module.exports = Class.create({
 					
 					args.perf.end('process');
 					
-					this.sendHTTPResponse( 
-						args, 
+					this.sendHTTPResponse( args, 
 						"403 Forbidden", 
 						{ 'Content-Type': "text/html" }, 
 						"403 Forbidden: ACL disallowed request.\n"
@@ -696,8 +794,7 @@ module.exports = Class.create({
 					if (args.query.format && (args.query.format.match(/html/i)) && args.query.callback) {
 						// old school IFRAME style response
 						headers['Content-Type'] = "text/html";
-						self.sendHTTPResponse( 
-							args, 
+						self.sendHTTPResponse( args, 
 							status, 
 							headers, 
 							'<html><head><script>' + 
@@ -708,8 +805,7 @@ module.exports = Class.create({
 					else if (args.query.callback) {
 						// JSON with JS callback wrapper
 						headers['Content-Type'] = "text/javascript";
-						self.sendHTTPResponse( 
-							args, 
+						self.sendHTTPResponse( args, 
 							status, 
 							headers, 
 							args.query.callback + "(" + payload + ");\n"
@@ -718,8 +814,7 @@ module.exports = Class.create({
 					else {
 						// pure json
 						headers['Content-Type'] = "application/json";
-						self.sendHTTPResponse( 
-							args, 
+						self.sendHTTPResponse( args, 
 							status, 
 							headers, 
 							payload + "\n"
@@ -728,11 +823,10 @@ module.exports = Class.create({
 				} // json response
 				else {
 					// unknown response
-					self.sendHTTPResponse( 
-						args, 
+					self.sendHTTPResponse( args, 
 						"500 Internal Server Error", 
 						{ 'Content-Type': "text/html" }, 
-						"500 Internal Server Error: URI handler returned unknown data type.\n"
+						"500 Internal Server Error: URI handler " + handler.name + " returned unknown data type.\n"
 					);
 				}
 				

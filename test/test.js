@@ -764,6 +764,79 @@ module.exports = {
 					test.done();
 				} 
 			);
+		},
+		
+		// filters
+		function testFilterPassthrough(test) {
+			// setup filter for passthrough
+			var self = this;
+			
+			this.web_server.addURIFilter( /^\/json/, "Test Filter", function(args, callback) {
+				// add a nugget into request query
+				args.query.filter_nugget = 42;
+				
+				// add a custom response header too
+				args.response.setHeader('X-Filtered', "4242");
+				
+				callback(false); // passthru
+			} );
+			
+			request.json( 'http://127.0.0.1:3020/json', false, function(err, resp, json, perf) {
+				test.ok( !err, "No error from PixlRequest: " + err );
+				test.ok( !!resp, "Got resp from PixlRequest" );
+				test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+				test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+				test.ok( !!json, "Got JSON in response" );
+				test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+				
+				// did our query nugget make it all the way through?
+				test.ok( json.query.filter_nugget == "42", "Found filter nugget infused into query" );
+				
+				// and our response header nugget too?
+				test.ok( resp.headers['x-filtered'] == "4242", "Correct X-Filtered header: " + resp.headers['x-filtered'] );
+				
+				// remove filter
+				self.web_server.removeURIFilter('Test Filter');
+				
+				test.done();
+			} );
+		},
+		
+		function testFilterIntercept(test) {
+			// setup filter for intercepting request and sending custom response
+			var self = this;
+			
+			this.web_server.addURIFilter( /.+/, "Test Filter 418", function(args, callback) {
+				// send our own custom response
+				callback(
+					"418 I'm a teapot", 
+					{ 'X-Filtered': 42 },
+					null
+				);
+			} );
+			
+			request.get( 'http://127.0.0.1:3020/index.html',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 418, "Got 418 response: " + resp.statusCode );
+					test.ok( resp.headers['x-filtered'] == 42, "Correct X-Filtered header: " + resp.headers['x-filtered'] );
+					
+					// remove filter
+					self.web_server.removeURIFilter('Test Filter 418');
+					
+					// make sure things are back to good
+					request.get( 'http://127.0.0.1:3020/index.html',
+						function(err, resp, data, perf) {
+							test.ok( !err, "No error from PixlRequest: " + err );
+							test.ok( !!resp, "Got resp from PixlRequest" );
+							test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+							test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+							test.done();
+						}
+					); // request.get #2
+				}
+			); // request.get #1
 		}
 		
 	], // tests

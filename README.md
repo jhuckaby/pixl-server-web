@@ -4,7 +4,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 
 # Table of Contents
 
-- [Overview](#overview)
+<!-- toc -->
 - [Usage](#usage)
 - [Configuration](#configuration)
 	* [http_port](#http_port)
@@ -59,6 +59,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 		+ [args.cookies](#argscookies)
 		+ [args.perf](#argsperf)
 		+ [args.server](#argsserver)
+	* [Request Filters](#request-filters)
 - [Logging](#logging)
 - [Stats](#stats)
 	* [The Server Object](#the-server-object)
@@ -83,7 +84,7 @@ npm install pixl-server pixl-server-web
 
 Here is a simple usage example.  Note that the component's official name is `WebServer`, so that is what you should use for the configuration key, and for gaining access to the component via your server object.
 
-```javascript
+```js
 var PixlServer = require('pixl-server');
 var server = new PixlServer({
 	
@@ -122,7 +123,7 @@ server.startup( function() {
 
 Notice how we are loading the [pixl-server](https://www.npmjs.com/package/pixl-server) parent module, and then specifying [pixl-server-web](https://www.npmjs.com/package/pixl-server-web) as a component:
 
-```javascript
+```js
 components: [
 	require('pixl-server-web')
 ]
@@ -178,7 +179,7 @@ This is a regular expression string used to determine if the incoming POST reque
 
 This param allows you to send back any additional custom HTTP headers with each response.  Set the param to an object containing keys for each header, like this:
 
-```javascript
+```js
 {
 	http_response_headers: {
 		"X-My-Custom-Header": "12345",
@@ -302,7 +303,7 @@ X-Forwarded-Proto: https
 
 The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the `args.request.headers.ssl` property will be set to `true`, and calls to `server.getSelfURL()` will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
 
-```javascript
+```js
 {
 	https_header_detect: {
 		"Front-End-Https": "^on$",
@@ -326,7 +327,7 @@ You can attach your own handler methods for intercepting and responding to certa
 
 To do this, call the `addURIHandler()` method and pass in the URI string, a name (for logging), and a callback function:
 
-```javascript
+```js
 server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
 	// custom request handler for our URI
 	callback( 
@@ -339,7 +340,7 @@ server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, 
 
 URIs must match exactly (sans the query string), and the case is sensitive.  If you need to implement something more complicated, such as a regular expression match, you can pass one of these in as well.  Example:
 
-```javascript
+```js
 server.WebServer.addURIHandler( /^\/custom\/match\/$/i, 'Custom2', function(args, callback) {...} );
 ```
 
@@ -391,7 +392,7 @@ There are actually four different ways you can send an HTTP response.  They are 
 
 The first type of response is shown above, and that is passing three arguments to the callback function.  The HTTP response status line (e.g. `200 OK` or `404 File Not Found`), a response headers object containing key/value pairs for any custom headers you want to send back (will be combined with the default ones), and finally the content body.  Example:
 
-```javascript
+```js
 callback( 
 	"200 OK", 
 	{ 'Content-Type': "text/html" }, 
@@ -405,7 +406,7 @@ The content body can be a string, a [Buffer](https://nodejs.org/api/buffer.html)
 
 The second type of response is to send content directly to the underlying Node.js server by yourself, using `args.response` (see below).  If you do this, you can pass `true` to the callback function, indicating to the web server that you "handled" the response, and it shouldn't do anything else.  Example:
 
-```javascript
+```js
 server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
 	// send custom raw response
 	var response = args.response;
@@ -422,7 +423,7 @@ server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, 
 
 The third way is to pass a single object to the callback function, which will be serialized to JSON and sent back as an AJAX style response to the client.  Example:
 
-```javascript
+```js
 server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
 	// send custom JSON response
 	callback( {
@@ -477,7 +478,7 @@ Server: Test 1.0
 
 The fourth and final type of response is a non-response, and this is achieved by passing `false` to the callback function.  This indicates to the web server that your code did *not* handle the request, and it should fall back to looking up a static file on disk.  Example:
 
-```javascript
+```js
 server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
 	// we did not handle the request, so tell the web server to do so
 	callback( false );
@@ -548,7 +549,7 @@ This will be an object containing key/value pairs from the URL query string, if 
 
 Duplicate query params become an array.  For example, an incoming URI such as `/something?foo=bar1&foo=bar2&name=joe` would produce the following `args.query` object:
 
-```javascript
+```js
 {
 	"foo": ["bar1", "bar2"],
 	"name": "joe"
@@ -591,7 +592,7 @@ All temp files are automatically deleted at the end of the request.
 
 This is an object parsed from the incoming `Cookie` HTTP header, if present.  The contents will be key/value pairs for each semicolon-separated cookie provided.  For example, if the client sent in a `session_id` cookie, it could be accessed like this:
 
-```javascript
+```js
 var session_id = args.cookies['session_id'];
 ```
 
@@ -602,6 +603,51 @@ This is a reference to a [pixl-perf](https://www.npmjs.com/package/pixl-perf) ob
 ### args.server
 
 This is a reference to the pixl-server object which handled the request.
+
+## Request Filters
+
+Filters allow you to preprocess a request, before any handlers get their hands on it.  They can pass data through, manipulate it, or even interrupt and abort requests.  Filters are attached to particular URIs or URI patterns, and multiple may applied to one request, depending on your rules.  They can be asynchronous, and can also pass data between one another if desired.
+
+You can attach your own filter methods for intercepting and responding to certain incoming URIs.  So for example, let's say we want to filter the URI `/api/add_user` before the handler gets it, and inject some custom data.  To do this, call the `addURIFilter()` method and pass in the URI string, a name (for logging), and a callback function:
+
+```js
+server.WebServer.addURIFilter( /.+/, "My Filter", function(args, callback) {
+	// add a nugget into request query
+	args.query.filter_nugget = 42;
+	
+	// add a custom response header too
+	args.response.setHeader('X-Filtered', "4242");
+	
+	callback(false); // passthru
+} );
+```
+
+So here we are injecting `filter_nugget` into the `args.query` object, which is preserved and passed down to other filters and handlers.  Also, we are adding a `X-Filtered` header to the response (whoever ends up sending it).  Finally, we call the `callback` function passing `false`, which means to pass the request through to other filters and/or handlers (see below for more on this).
+
+URI strings must match exactly (sans the query string), and the case is sensitive.  If you need to match something more complicated, such as a regular expression, you can pass one of these in place of the URI string.  Example:
+
+```js
+server.WebServer.addURIFilter( /^\/custom\/match\/$/i, 'Custom2', function(args, callback) {...} );
+```
+
+Your filter handler function is passed exactly two arguments.  First, an `args` object containing all kinds of useful information about the request (see [args](#args) above), and a callback function that you must invoke when the filter is complete, and you want to either allow the request to continue, or interrupt it and send your own response.
+
+As shown above, passing `false` to the callback means to pass the request through to downstream filters and handlers.  If you want to intercept and abort the request, and send your own response preventing any further processing, you can pass a [Standard Response](#standard-response) to the callback, i.e. send exactly 3 arguments, an HTTP response code, HTTP response headers, and the response body (or `null`):
+
+```js
+server.WebServer.addURIFilter( /.+/, "Reject All", function(args, callback) {
+	// intercept everything and send our own custom response
+	callback(
+		"418 I'm a teapot", 
+		{ 'X-Filtered': 42 },
+		null
+	);
+} );
+```
+
+This will intercept and abort all requests, sending back a `HTTP 418` error.
+
+To pass data between filters and potentially handlers, simply add properties into the `args` object.  This object is preserved for the lifetime of the request, and the same object reference is passed to all filters and handlers.  Just be careful of namespace collisions with existing properties in the object.  See [args](#args) above for details.
 
 # Logging
 
@@ -913,7 +959,7 @@ See the [https_header_detect](#https_header_detect) configuration property for a
 
 To build a URL string that points at the current server, call `server.getSelfURL()` and pass in the `args.request` object.  This will produce a URL using the correct protocol (HTTP or HTTPS), the hostname used on the request, and the port number if applicable.  Example:
 
-```javascript
+```js
 var url = server.getSelfURL(args.request);
 ```
 
@@ -925,7 +971,7 @@ You can also register a handler that is invoked for every single request for a g
 
 To use this, call the server `addMethodHandler()` method, and pass in the method name, title (for logging), and a callback function.  One potential use of this is to capture `OPTIONS` requests, which browsers send in for [CORS AJAX Preflights](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS).  Example:
 
-```javascript
+```js
 server.WebServer.addMethodHandler( "OPTIONS", "CORS Preflight", function(args, callback) {
 	// handler for HTTP OPTIONS calls (CORS AJAX preflight)
 	callback( "200 OK", 
