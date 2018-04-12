@@ -1011,12 +1011,20 @@ module.exports = Class.create({
 			});
 		}
 		
+		// see if handler has requested gzip, or auto-detect it
+		var do_compress = headers['X-Compress'] || headers['x-compress'] || false;
+		if (!do_compress) {
+			do_compress = !!(
+				this.config.get('http_gzip_text') && 
+				headers['Content-Type'] && 
+				headers['Content-Type'].match(this.regexTextContent)
+			);
+		}
+		
 		// auto-gzip response based on content type
 		if (body && 
 			(http_code == 200) && 
-			this.config.get('http_gzip_text') && 
-			headers['Content-Type'] && 
-			headers['Content-Type'].match(this.regexTextContent) && 
+			do_compress && 
 			!headers['Content-Encoding'] && // do not encode if already encoded
 			args.request && 
 			args.request.headers['accept-encoding'] && 

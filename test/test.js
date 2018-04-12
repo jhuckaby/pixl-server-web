@@ -141,6 +141,15 @@ module.exports = {
 					callback( server.WebServer.getStats() );
 				} );
 				
+				web_server.addURIHandler( '/binary-force-gzip', 'Force GZIP Test', function(args, callback) {
+					// send custom gzip response
+					callback( 
+						"200 OK", 
+						{ 'Content-Type': "image/gif", 'X-Compress': 1 },
+						fs.readFileSync( 'spacer.gif' )
+					);
+				} );
+				
 				// test suite ready
 				callback();
 				
@@ -429,6 +438,31 @@ module.exports = {
 					test.ok( !resp.headers['content-encoding'], "Content-Encoding header should NOT be present!" );
 					
 					test.ok( !!data, "Got data in response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// binary force gzip
+		// this is a binary file (typically not compressed), but the handler is forcing gzip
+		function testBinaryForceCompress(test) {
+			// test HTTP GET to webserver backend, make sure response is compressed
+			request.get( 'http://127.0.0.1:3020/binary-force-gzip',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/image\/gif/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/gzip/), "Content-Encoding header contains gzip" );
+					
+					test.ok( !!data, "Got data in response" );
+					test.ok( data.length === fs.readFileSync('spacer.gif').length, "spacer.gif content is correct" );
 					
 					test.done();
 				} 

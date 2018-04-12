@@ -167,6 +167,8 @@ This is a string to send back to the client with every request, as the `Server` 
 
 This is a boolean indicating whether or not to compress text responses using GZip ([zlib](https://nodejs.org/api/zlib.html) software compression in Node.js).  The default is `false`.
 
+Note that you can force compression on an individual response basis, by including a `X-Compress: 1` response header in your URI handler code.  The web server will detect this header and force-enable compression on the data, regardless of the `http_gzip_text` or `http_regex_text` settings.  Note that it still honors the client `Accept-Encoding` header, and will only enable compression if this request header is present and contains `gzip`.
+
 ## http_regex_text
 
 This is a regular expression string which is compared against the `Content-Type` response header.  When this matches, and [http_gzip_text](#http_gzip_text) is enabled, this will kick in GZip compression.  It defaults to `(text|javascript|json|css|html)`.
