@@ -39,6 +39,7 @@ module.exports = Class.create({
 		http_log_requests: false,
 		http_recent_requests: 10,
 		http_max_connections: 0,
+		http_max_requests_per_connection: 0,
 		http_clean_headers: false
 	},
 	
@@ -76,6 +77,9 @@ module.exports = Class.create({
 		this.keepAlives = this.config.get('http_keep_alives');
 		if (this.keepAlives === false) this.keepAlives = 0;
 		else if (this.keepAlives === true) this.keepAlives = 1;
+		
+		// optional max requests per KA connection
+		this.maxReqsPerConn = this.config.get('http_max_requests_per_connection');
 		
 		// prep static file server
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
@@ -514,6 +518,16 @@ module.exports = Class.create({
 		// track performance of request
 		args.perf = new Perf();
 		args.perf.begin();
+		
+		if (this.server.shut) {
+			// server is shutting down, deny new requests
+			this.logError(503, "Server is shutting down, denying request from: " + ip, 
+				{ ips: ips, uri: request.url, headers: request.headers }
+			);
+			this.sendHTTPResponse( args, "503 Service Unavailable", {}, "503 Service Unavailable (server shutting down)" );
+			return;
+		}
+		
 		args.perf.begin('read');
 		
 		// we have to guess at the http raw status + raw header size
@@ -854,6 +868,53 @@ module.exports = Class.create({
 		}
 	},
 	
+	manageKeepAliveResponse: function(args, headers) {
+		// massage outgoing headers for keep-alive requests
+		// possibly override response 'Connection' header, if we want the client to close
+		var request = args.request;
+		var socket_data = request.socket._pixl_data || { num_requests: 0 };
+		
+		switch (this.keepAlives) {
+			case 0:
+			case 'close':
+				// KA disabled, always close
+				headers['Connection'] = 'close';
+			break;
+			
+			case 1:
+			case 'request':
+				// KA enabled only if client explicitly requests it
+				if (!request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
+					headers['Connection'] = 'close';
+				}
+				else if (this.maxReqsPerConn && (socket_data.num_requests >= this.maxReqsPerConn - 1)) {
+					this.logDebug(8, "Closing socket after " + this.maxReqsPerConn + " keep-alive requests: " + socket_data.id);
+					headers['Connection'] = 'close';
+				}
+				else if (this.server.shut) {
+					this.logDebug(8, "Closing socket due to server shutting down: " + socket_data.id);
+					headers['Connection'] = 'close';
+				}
+			break;
+			
+			case 2:
+			case 'default':
+				// KA enabled by default, only disable if client says close
+				if (request.headers.connection && request.headers.connection.match(/close/i)) {
+					headers['Connection'] = 'close';
+				}
+				else if (this.maxReqsPerConn && (socket_data.num_requests >= this.maxReqsPerConn - 1)) {
+					this.logDebug(8, "Closing socket after " + this.maxReqsPerConn + " keep-alive requests: " + socket_data.id);
+					headers['Connection'] = 'close';
+				}
+				else if (this.server.shut) {
+					this.logDebug(8, "Closing socket due to server shutting down: " + socket_data.id);
+					headers['Connection'] = 'close';
+				}
+			break;
+		} // switch
+	},
+	
 	sendStaticResponse: function(args) {
 		// serve static file for URI
 		var self = this;
@@ -863,6 +924,16 @@ module.exports = Class.create({
 		
 		args.state = 'writing';
 		args.perf.begin('write');
+		
+		// hijack response.writeHead, so we can set the connection header if needed
+		var socket_data = request.socket._pixl_data || { num_requests: 0 };
+		var writeHeadOrig = response.writeHead;
+		
+		response.writeHead = function(status, headers) {
+			if (!headers) headers = {};
+			self.manageKeepAliveResponse(args, headers);
+			writeHeadOrig.apply(response, [status, headers]);
+		};
 		
 		response.on('finish', function() {
 			// response actually completed writing
@@ -943,6 +1014,9 @@ module.exports = Class.create({
 		if (typeof(headers['Server']) == 'undefined') {
 			headers['Server'] = this.config.get('http_server_signature') || this.__name;
 		}
+		
+		// possibly overwrite 'Connection' header for KA closure
+		this.manageKeepAliveResponse(args, headers);
 		
 		// parse code and status
 		var http_code = 200;
@@ -1108,7 +1182,7 @@ module.exports = Class.create({
 		if (headers && this.config.get('http_clean_headers')) {
 			// prevent bad characters in headers, which can crash node's writeHead() call
 			for (var key in headers) {
-				headers[key] = headers[key].toString().replace(/([\x80-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+				headers[key] = headers[key].toString().replace(/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
 			}
 		}
 		
@@ -1198,7 +1272,7 @@ module.exports = Class.create({
 			case 0:
 			case 'close':
 				// KA disabled, always close
-				this.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
+				this.logDebug(9, "Closing socket: " + socket_data.id);
 				request.socket.end(); // close nicely
 			break;
 			
@@ -1207,11 +1281,11 @@ module.exports = Class.create({
 				// KA enabled only if client explicitly requests it
 				if (!request.headers.connection || !request.headers.connection.match(/keep\-alive/i)) {
 					// close socket
-					this.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
+					this.logDebug(9, "Closing socket: " + socket_data.id);
 					request.socket.end(); // close nicely
 				}
 				else {
-					this.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
+					this.logDebug(9, "Keeping socket open for keep-alives: " + socket_data.id);
 				}
 			break;
 			
@@ -1219,14 +1293,14 @@ module.exports = Class.create({
 			case 'default':
 				// KA enabled by default, only disable if client says close
 				if (request.headers.connection && request.headers.connection.match(/close/i)) {
-					this.logDebug(9, "Closing socket: " + request.socket._pixl_data.id);
+					this.logDebug(9, "Closing socket: " + socket_data.id);
 					request.socket.end(); // close nicely
 				}
 				else {
-					this.logDebug(9, "Keeping socket open for keep-alives: " + request.socket._pixl_data.id);
+					this.logDebug(9, "Keeping socket open for keep-alives: " + socket_data.id);
 				}
 			break;
-		}
+		} // switch
 	},
 	
 	tick: function() {

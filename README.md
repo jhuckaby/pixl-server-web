@@ -228,6 +228,16 @@ This **disables** Keep-Alives for all incoming connections by default, unless th
 
 This completely disables Keep-Alives for all connections.  All requests result in the socket being closed after completion, and each socket only serves one single request.
 
+## http_max_requests_per_connection
+
+This allows you to set a maximum number of requests to allow per Keep-Alive connection.  It defaults to `0` which means unlimited.  If set, and the maximum is reached, a `Connection: close` header is returned, politely asking the client to close the connection.  It does not actually hard-close the socket.  Example:
+
+```js
+{
+	"http_max_requests_per_connection": 100
+}
+```
+
 ## http_gzip_opts
 
 This allows you to set various options for the automatic GZip compression in HTTP responses.  Example:
@@ -273,7 +283,7 @@ This integer specifies the maximum number of concurrent connections to allow.  I
 
 ## http_clean_headers
 
-This boolean enables HTTP response header cleansing.  When set to `true` it will strip all illegal characters from your response header values, which otherwise could cause Node.js to crash.  It defaults to `false`.  The regular expression it uses is `/([\x80-\xFF\x00-\x1F\u00FF-\uFFFF])/g`.
+This boolean enables HTTP response header cleansing.  When set to `true` it will strip all illegal characters from your response header values, which otherwise could cause Node.js to crash.  It defaults to `false`.  The regular expression it uses is `/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g`.
 
 ## https
 
