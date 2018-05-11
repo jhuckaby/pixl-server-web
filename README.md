@@ -23,6 +23,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 		+ [default](#default)
 		+ [request](#request)
 		+ [close](#close)
+	* [http_max_requests_per_connection](#http_max_requests_per_connection)
 	* [http_gzip_opts](#http_gzip_opts)
 	* [http_default_acl](#http_default_acl)
 	* [http_log_requests](#http_log_requests)
