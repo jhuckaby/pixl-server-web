@@ -1035,7 +1035,7 @@ module.exports = Class.create({
 		
 		// if string, convert to buffer so content length is correct (unicode)
 		if (is_string) {
-			body = new Buffer(body);
+			body = Buffer.from(body);
 		}
 		
 		// set content-type if not already set
