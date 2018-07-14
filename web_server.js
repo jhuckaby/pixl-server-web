@@ -1403,11 +1403,14 @@ module.exports = Class.create({
 		var url = ssl ? 'https://' : 'http://';
 		url += request.headers.host.replace(/\:\d+$/, '');
 		
-		if (ssl && this.config.get('https_port') && (this.config.get('https_port') != 443)) {
-			url += ':' + this.config.get('https_port');
-		}
-		else if (!ssl && this.config.get('http_port') && (this.config.get('http_port') != 80)) {
-			url += ':' + this.config.get('http_port');
+		// only re-add port number if original incoming request had one
+		if (request.headers.host.match(/\:\d+$/)) {
+			if (ssl && this.config.get('https_port') && (this.config.get('https_port') != 443)) {
+				url += ':' + this.config.get('https_port');
+			}
+			else if (!ssl && this.config.get('http_port') && (this.config.get('http_port') != 80)) {
+				url += ':' + this.config.get('http_port');
+			}
 		}
 		
 		url += (uri || '/');
