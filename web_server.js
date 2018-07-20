@@ -984,6 +984,8 @@ module.exports = Class.create({
 			this.internalFileServer.serve(request, response, handleFileServerResponse);
 		}
 		else {
+			// make sure file path doesn't have any invalid characters
+			request.url = request.url.replace(/[^\u0021-\u00ff]/g, '');
 			this.fileServer.serve(request, response, handleFileServerResponse);
 		}
 	},
