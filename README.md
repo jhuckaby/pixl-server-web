@@ -383,7 +383,7 @@ server.WebServer.addURIHandler( /^\/secret/, "Super Secret Area", ['10.0.0.0/8',
 
 This would only allow requests from either `10.0.0.0/8` or `172.16.0.0/12`.
 
-The ACL code scans *all* the IP addresses from the client, including the socket IP and any passed as part of the `X-Forwarded-For` header (populated by load balancers, proxies, etc.).  All the IPs must pass the ACL test in order for the request to be allowed through to your handler.
+The ACL code scans *all* the IP addresses from the client, including the socket IP and any passed as part of HTTP headers (populated by load balancers, proxies, etc.).  All the IPs must pass the ACL test in order for the request to be allowed through to your handler.
 
 If a request is rejected, your handler isn't even called.  Instead, a standard `HTTP 403 Forbidden` response is sent to the client, and an error is logged.
 
@@ -546,15 +546,28 @@ For more detailed documentation on the response object, see Node's [http.ServerR
 
 ### args.ip
 
-This will be set to the user's remote IP address.  Specifically, it will be set to the *first public IP address* if multiple addresses are provided via the `X-Forwarded-For` header and the socket.
+This will be set to the user's remote IP address.  Specifically, it will be set to the *first public IP address* if multiple addresses are provided via proxy HTTP headers and the socket.
 
-Meaning, if the user is sitting behind one or more proxy servers, *or* your web server is behind a load balancer, this will attempt to locate the user's true public (non-private) IP address.  If none is found, it'll just return the first IP address, honoring `X-Forwarded-For` before the socket (which is usually correct).
+Meaning, if the user is sitting behind one or more proxy servers, *or* your web server is behind a load balancer, this will attempt to locate the user's true public (non-private) IP address.  If none is found, it'll just return the first IP address, honoring proxy headers before the socket (which is usually correct).
 
 If you just want the socket IP by itself, you can get it from `args.request.socket.remoteAddress`.
 
 ### args.ips
 
-This will be set to an array of *all* the user's remote IP addresses, taking into account the socket IP and the `X-Forwarded-For` HTTP header, if applicable.  The `X-Forwarded-For` address(es) will come first, if applicable, followed by the socket IP at the end.
+This will be set to an array of *all* the user's remote IP addresses, taking into account the socket IP and various HTTP headers populated by proxies and load balancers, if applicable.  The header address(es) will come first, if applicable, followed by the socket IP at the end.
+
+The following HTTP headers are scanned for IP addresses to build the `args.ip` array:
+
+| Header | Syntax | Description |
+|--------|--------|-------------|
+| `X-Forwarded-For` | Comma-Separated | The de-facto standard header for identifying the originating IP address of a client connecting through an HTTP proxy or load balancer.  See [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For). |
+| `Forwarded-For` | Comma-Separated | Alias for `X-Forwarded-For`. |
+| `Forwarded` | Custom | New standard header as defined in [RFC 7239](https://tools.ietf.org/html/rfc7239#section-4), with custom syntax.  See [Forwarded](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded).
+| `X-Client-IP` | Single | Non-standard, used by Heroku, etc. |
+| `CF-Connecting-IP` | Single | Non-standard, used by CloudFlare. |
+| `True-Client-IP` | Single | Non-standard, used by Akamai, CloudFlare, etc. |
+| `X-Real-IP` | Single | Non-standard, used by Nginx, FCGI, etc. |
+| `X-Cluster-Client-IP` | Single | Non-standard, used by Rackspace, Riverbed, etc. |
 
 ### args.query
 
@@ -715,7 +728,7 @@ Here are descriptions of the data JSON properties:
 | Property | Description |
 |----------|-------------|
 | `proto` | The protocol of the request (`http` or `https`). |
-| `ips` | All the client IPs as an array (includes those from the `X-Forwarded-For` header). |
+| `ips` | All the client IPs as an array (includes those from proxy headers). |
 | `ua` | The `User-Agent` string from the request headers. |
 | `host` | The hostname from the request URL. |
 | `perf` | Performance metrics, see below. |
@@ -888,7 +901,7 @@ The `sockets` object contains information about all currently open sockets.  Not
 | `num_requests` | The total number of requests served by the socket (i.e. keep-alives). |
 | `bytes_in` | The total number of bytes received by the socket. |
 | `bytes_out` | The total number of bytes sent by the socket. |
-| `ips` | If an HTTP request is in progress, this will contain the array of client IPs, including `X-Forwarded-For` IPs. |
+| `ips` | If an HTTP request is in progress, this will contain the array of client IPs, including proxy IPs. |
 | `method` | If an HTTP request is in progress, this will contain the request method (e.g. `GET`, `POST`, etc.) |
 | `uri` | If an HTTP request is in progress, this will contain the full request URI. |
 | `host` | If an HTTP request is in progress, this will contain the hostname from the URL. |
@@ -906,7 +919,7 @@ The `recent` array is a sorted list of the last 10 completed requests (most rece
 | `status` | The HTTP response status message, e.g. `OK` or `File Not Found`. |
 | `uri` | The full request URI including query string. |
 | `host` | The hostname from the request URL. |
-| `ips` | The array of client IPs, including `X-Forwarded-For` IPs. |
+| `ips` | The array of client IPs, including proxy IPs. |
 | `ua` | The client's `User-Agent` string. |
 | `perf` | A [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance metrics object containing stats for the request. |
 
@@ -970,13 +983,17 @@ See the [https_header_detect](#https_header_detect) configuration property for a
 
 ## Self-Referencing URLs
 
-To build a URL string that points at the current server, call `server.getSelfURL()` and pass in the `args.request` object.  This will produce a URL using the correct protocol (HTTP or HTTPS), the hostname used on the request, and the port number if applicable.  Example:
+To build a URL that points at the current server, call `server.getSelfURL()` and pass in the `args.request` object.  This will produce a URL using the same protocol as the request (HTTP or HTTPS), the same hostname used on the request, and the port number if applicable.  By default, the URL will point to the root path (`/`).  Example:
 
 ```js
 var url = server.getSelfURL(args.request);
 ```
 
-You can optionally pass in a custom URI as the second argument.
+You can optionally pass in a URI path as the second argument.  For example, to build a URL to the exact request URI that came in, pass in `args.request.url` as the second argument:
+
+```js
+var url = server.getSelfURL(args.request, args.request.url);
+```
 
 ## Custom Method Handlers
 

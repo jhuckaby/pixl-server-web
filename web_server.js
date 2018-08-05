@@ -126,12 +126,12 @@ module.exports = Class.create({
 		this.server.on( 'tick', this.tick.bind(this) );
 		
 		// start listeners
-		this.startHTTP( function() {
+		this.startHTTP( function(err) {
 			// also start HTTPS listener?
 			if (self.config.get('https')) {
 				self.startHTTPS( callback );
 			} // https
-			else callback();
+			else callback(err);
 		} );
 	},
 	
@@ -228,11 +228,16 @@ module.exports = Class.create({
 			} );
 		} );
 		
+		this.http.once('error', function(err) {
+			// fatal startup error on HTTP server, probably EADDRINUSE
+			self.logError('startup', "Failed to start HTTP listener: " + err.message);
+			return callback(err);
+		} );
+		
 		this.http.listen( port, function(err) {
 			if (err) {
 				self.logError('startup', "Failed to start HTTP listener: " + err.message);
-				throw err;
-				return;
+				return callback(err);
 			}
 			if (!port) {
 				port = self.http.address().port;
@@ -332,11 +337,16 @@ module.exports = Class.create({
 			} );
 		} );
 		
+		this.http.once('error', function(err) {
+			// fatal startup error on HTTPS server, probably EADDRINUSE
+			self.logError('startup', "Failed to start HTTPS listener: " + err.message);
+			return callback(err);
+		} );
+		
 		this.https.listen( port, function(err) {
 			if (err) {
 				self.logError('startup', "Failed to start HTTPS listener: " + err.message);
-				throw err;
-				return;
+				return callback(err);
 			}
 			if (!port) {
 				port = self.https.address().port;
@@ -1376,9 +1386,25 @@ module.exports = Class.create({
 	getAllClientIPs: function(request) {
 		// create array of all IPs from the request, using the socket IP and X-Forwarded-For, if applicable
 		var ips = [];
-		if (request.headers['x-forwarded-for']) {
-			ips = request.headers['x-forwarded-for'].split(/\,\s*/);
-		}
+		var headers = request.headers || {};
+		
+		// single IP headers
+		['x-client-ip', 'cf-connecting-ip', 'true-client-ip', 'x-real-ip', 'x-cluster-client-ip'].forEach( function(key) {
+			if (headers[key]) ips.push( headers[key] );
+		} );
+		
+		// multi-CSV IP headers
+		['x-forwarded-for', 'forwarded-for'].forEach( function(key) {
+			if (headers[key]) [].push.apply( ips, headers[key].split(/\,\s*/) );
+		} );
+		
+		// special headers
+		// e.g. Forwarded: for=192.0.2.43, for="[2001:db8:cafe::17]"
+		['x-forwarded', 'forwarded'].forEach( function(key) {
+			if (headers[key]) headers[key].replace( /\bfor\=\"?\[?([^\,\]\"]+)/g, function(m_all, m_g1) {
+				ips.push( m_g1 );
+			} );
+		} );
 		
 		// add socket ip to end of array
 		ips.push( request.socket.remoteAddress );
