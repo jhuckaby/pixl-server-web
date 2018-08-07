@@ -563,6 +563,7 @@ The following HTTP headers are scanned for IP addresses to build the `args.ip` a
 | `X-Forwarded-For` | Comma-Separated | The de-facto standard header for identifying the originating IP address of a client connecting through an HTTP proxy or load balancer.  See [X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For). |
 | `Forwarded-For` | Comma-Separated | Alias for `X-Forwarded-For`. |
 | `Forwarded` | Custom | New standard header as defined in [RFC 7239](https://tools.ietf.org/html/rfc7239#section-4), with custom syntax.  See [Forwarded](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded).
+| `X-Forwarded` | Custom | Alias for `Forwarded`. |
 | `X-Client-IP` | Single | Non-standard, used by Heroku, etc. |
 | `CF-Connecting-IP` | Single | Non-standard, used by CloudFlare. |
 | `True-Client-IP` | Single | Non-standard, used by Akamai, CloudFlare, etc. |
