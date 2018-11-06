@@ -256,11 +256,11 @@ Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#zlib_c
 
 ## http_default_acl
 
-This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Access_control_list), which is only used for URI handlers that register themselves as private.  To customize it, specify an array of [IPv4 addresses](https://en.wikipedia.org/wiki/IPv4), partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  It defaults to [localhost](https://en.wikipedia.org/wiki/Localhost) plus the [IPv4 private reserved space](https://en.wikipedia.org/wiki/Private_network).  Example:
+This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Access_control_list), which is only used for URI handlers that register themselves as private.  To customize it, specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  It defaults to [localhost](https://en.wikipedia.org/wiki/Localhost) plus the [IPv4 private reserved](https://en.wikipedia.org/wiki/Private_network#Private_IPv4_addresses) and [IPv6 private reserved ranges](https://en.wikipedia.org/wiki/Private_network#Private_IPv6_addresses).  Example:
 
 ```js
 {
-	http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+	http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8']
 }
 ```
 
@@ -372,18 +372,18 @@ server.WebServer.addURIHandler( /^\/private/, "Private Admin Area", true, functi
 } );
 ```
 
-This will protect the handler using the *default ACL*, as specified by the [http_default_acl](#http_default_acl) configuration parameter.  However, if you want to specify a *custom* ACL per handler, simply replace the `true` argument with an array of [IPv4 addresses](https://en.wikipedia.org/wiki/IPv4), partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
+This will protect the handler using the *default ACL*, as specified by the [http_default_acl](#http_default_acl) configuration parameter.  However, if you want to specify a *custom* ACL per handler, simply replace the `true` argument with an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
 
 ```js
-server.WebServer.addURIHandler( /^\/secret/, "Super Secret Area", ['10.0.0.0/8', '172.16.0.0/12'], function(args, callback) {
+server.WebServer.addURIHandler( /^\/secret/, "Super Secret Area", ['10.0.0.0/8', 'fd00::/8'], function(args, callback) {
 	// request allowed
 	callback( "200 OK", { 'Content-Type': 'text/html' }, "<h1>Access granted!</h1>\n" );
 } );
 ```
 
-This would only allow requests from either `10.0.0.0/8` or `172.16.0.0/12`.
+This would only allow requests from either `10.0.0.0/8` (IPv4) or `fd00::/8` (IPv6).
 
-The ACL code scans *all* the IP addresses from the client, including the socket IP and any passed as part of HTTP headers (populated by load balancers, proxies, etc.).  All the IPs must pass the ACL test in order for the request to be allowed through to your handler.
+The ACL code scans *all* the IP addresses from the client, including the socket IP and any passed as part of HTTP headers (populated by load balancers, proxies, etc.).  See [args.ips](#argsips) for more details on this.  All the IPs must pass the ACL test in order for the request to be allowed through to your handler.
 
 If a request is rejected, your handler isn't even called.  Instead, a standard `HTTP 403 Forbidden` response is sent to the client, and an error is logged.
 

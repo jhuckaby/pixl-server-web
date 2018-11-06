@@ -11,11 +11,11 @@ var Formidable = require('formidable');
 var Querystring = require('querystring');
 var Static = require('node-static');
 var ErrNo = require('errno');
-var Netmask = require('netmask').Netmask;
 var StreamMeter = require("stream-meter");
 var Class = require("pixl-class");
 var Component = require("pixl-server/component");
 var Perf = require('pixl-perf');
+var ACL = require('pixl-acl');
 
 module.exports = Class.create({
 	
@@ -25,7 +25,7 @@ module.exports = Class.create({
 	version: require( __dirname + '/package.json' ).version,
 	
 	defaultConfig: {
-		http_regex_private_ip: "(^127\\.0\\.0\\.1)|(^10\\.)|(^172\\.1[6-9]\\.)|(^172\\.2[0-9]\\.)|(^172\\.3[0-1]\\.)|(^192\\.168\\.)",
+		http_private_ip_ranges: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8'],
 		http_regex_text: "(text|javascript|json|css|html)",
 		http_regex_json: "(javascript|js|json)",
 		http_keep_alives: 1,
@@ -35,7 +35,7 @@ module.exports = Class.create({
 		http_max_upload_size: 32 * 1024 * 1024,
 		http_temp_dir: os.tmpdir(),
 		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
-		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8'],
 		http_log_requests: false,
 		http_recent_requests: 10,
 		http_max_connections: 0,
@@ -49,7 +49,7 @@ module.exports = Class.create({
 	uriFilters: null,
 	uriHandlers: null,
 	methodHandlers: null,
-	defaultACL: [],
+	defaultACL: null,
 	stats: null,
 	recent: null,
 	
@@ -64,7 +64,8 @@ module.exports = Class.create({
 		this.uriFilters = [];
 		this.uriHandlers = [];
 		this.methodHandlers = [];
-		this.regexPrivateIP = new RegExp( this.config.get('http_regex_private_ip') );
+		this.defaultACL = new ACL();
+		this.aclPrivateRanges = new ACL( this.config.get('http_private_ip_ranges') );
 		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
 		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
 		this.logRequests = this.config.get('http_log_requests');
@@ -112,7 +113,7 @@ module.exports = Class.create({
 		if (this.config.get('http_default_acl')) {
 			try {
 				this.config.get('http_default_acl').forEach( function(block) {
-					self.defaultACL.push( new Netmask(block) );
+					self.defaultACL.add( block );
 				} );
 			}
 			catch (err) {
@@ -402,10 +403,10 @@ module.exports = Class.create({
 		if (acl) {
 			if (Array.isArray(acl)) {
 				// custom ACL for this handler
-				var blocks = [];
+				var blocks = new ACL();
 				try {
 					acl.forEach( function(block) {
-						blocks.push( new Netmask(block) );
+						blocks.add( block );
 					} );
 					acl = blocks;
 				}
@@ -735,40 +736,14 @@ module.exports = Class.create({
 			
 			// Check ACL here
 			if (handler.acl) {
-				var allowed = true;
-				var bad_ip = '';
-				
-				for (var idx = 0, len = args.ips.length; idx < len; idx++) {
-					var ip = args.ips[idx];
-					if (ip.match(/(\d+\.\d+\.\d+\.\d+)/)) ip = RegExp.$1; // extract IPv4
-					else ip = '0.0.0.0'; // unsupported format, probably ipv6
-					var contains = false;
-					
-					for (var idy = 0, ley = handler.acl.length; idy < ley; idy++) {
-						var block = handler.acl[idy];
-						
-						try { 
-							if (block.contains(ip)) { contains = true; idy = ley; }
-						}
-						catch (err) {;}
-					} // foreach acl
-					
-					if (!contains) {
-						// All ACLs rejected, so that's it
-						allowed = false;
-						bad_ip = ip;
-						idx = len;
-					}
-				} // foreach ip
-				
-				if (allowed) {
+				if (handler.acl.checkAll(args.ips)) {
 					// yay!
 					this.logDebug(9, "ACL allowed request", args.ips);
 				}
 				else {
 					// nope
-					this.logError(403, "Forbidden: IP address rejected by ACL: " + bad_ip, {
-						ips: args.ips,
+					this.logError(403, "Forbidden: IP addresses rejected by ACL: " + args.ips.join(', '), {
+						acl: handler.acl.toString(),
 						useragent: args.request.headers['user-agent'] || '',
 						referrer: args.request.headers['referer'] || '',
 						cookie: args.request.headers['cookie'] || '',
@@ -1407,7 +1382,9 @@ module.exports = Class.create({
 		} );
 		
 		// add socket ip to end of array
-		ips.push( request.socket.remoteAddress );
+		var ip = ''+request.socket.remoteAddress;
+		if (ip.match(/\:(\d+\.\d+\.\d+\.\d+)/)) ip = RegExp.$1; // extract IPv4 from IPv6 wrapper
+		ips.push( ip );
 		
 		return ips;
 	},
@@ -1415,7 +1392,7 @@ module.exports = Class.create({
 	getPublicIP: function(ips) {
 		// determine first public IP from list of IPs
 		for (var idx = 0, len = ips.length; idx < len; idx++) {
-			if (!ips[idx].match(this.regexPrivateIP)) return ips[idx];
+			if (!this.aclPrivateRanges.check(ips[idx])) return ips[idx];
 		}
 		
 		// default to first ip
