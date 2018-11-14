@@ -1184,6 +1184,7 @@ module.exports = Class.create({
 		
 		var socket_data = args.request.socket._pixl_data;
 		var metrics = args.perf.metrics();
+		this.emit('metrics', metrics);
 		
 		this.logDebug(9, "Request performance metrics:", metrics);
 		
@@ -1206,6 +1207,7 @@ module.exports = Class.create({
 				port: socket_data.port,
 				code: args.http_code,
 				status: args.http_status,
+				method: args.request.method,
 				uri: args.request.url,
 				ips: args.ips,
 				host: args.request.headers['host'] || '',

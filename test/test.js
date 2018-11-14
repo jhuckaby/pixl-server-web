@@ -598,6 +598,23 @@ module.exports = {
 			);
 		},
 		
+		function testACLBadIP(test) {
+			// test badly-formatted IP
+			request.get( 'http://127.0.0.1:3020/server-status', // ACL'ed endpoint
+				{
+					headers: {
+						"X-Forwarded-For": "THIS-IS-NOT-AN-IP-ADDRESS" // external IP
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 403, "Got 403 response: " + resp.statusCode );
+					test.done();
+				} 
+			);
+		},
+		
 		// get stats
 		function testStats(test) {
 			// test stats API (this also tests ACL pass)
