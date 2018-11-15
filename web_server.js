@@ -205,6 +205,8 @@ module.exports = Class.create({
 				bytes_out: 0
 			};
 			
+			self.emit('socket', socket);
+			
 			socket.on('error', function(err) {
 				// client aborted connection?
 				var msg = err.message;
@@ -313,6 +315,8 @@ module.exports = Class.create({
 				bytes_in: 0,
 				bytes_out: 0
 			};
+			
+			self.emit('socket', socket);
 			
 			socket.on('error', function(err) {
 				// client aborted connection?
@@ -1184,7 +1188,7 @@ module.exports = Class.create({
 		
 		var socket_data = args.request.socket._pixl_data;
 		var metrics = args.perf.metrics();
-		this.emit('metrics', metrics);
+		this.emit('metrics', metrics, args);
 		
 		this.logDebug(9, "Request performance metrics:", metrics);
 		
@@ -1312,7 +1316,7 @@ module.exports = Class.create({
 				ip: socket.remoteAddress,
 				proto: socket_data.proto,
 				port: socket_data.port,
-				elapsed_ms: now - socket_data.time_start,
+				uptime_ms: now - socket_data.time_start,
 				num_requests: socket_data.num_requests,
 				bytes_in: socket_data.bytes_in,
 				bytes_out: socket_data.bytes_out

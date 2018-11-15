@@ -802,7 +802,8 @@ The result is an object in this format:
 			"ip": "::ffff:127.0.0.1",
 			"proto": "http",
 			"port": 80,
-			"elapsed_ms": 70315,
+			"uptime_ms": 70315,
+			"elapsed_ms": 5.343,
 			"num_requests": 1,
 			"bytes_in": 172,
 			"bytes_out": 3869
@@ -812,6 +813,7 @@ The result is an object in this format:
 			"ip": "::ffff:127.0.0.1",
 			"proto": "http",
 			"port": 80,
+			"uptime_ms": 1.23,
 			"elapsed_ms": 0.280054,
 			"num_requests": 38,
 			"bytes_in": 0,
@@ -898,10 +900,11 @@ The `sockets` object contains information about all currently open sockets.  Not
 | `ip` | The client IP address connected to the socket (may be a load balancer or proxy). |
 | `proto` | The protocol of the socket, will be `http` or `https`. |
 | `port` | The listening port of the socket, e.g. `80` or `443`. |
-| `elapsed_ms` | The total time the socket has been connected, in milliseconds. |
+| `uptime_ms` | The total time the socket has been connected, in milliseconds. |
 | `num_requests` | The total number of requests served by the socket (i.e. keep-alives). |
 | `bytes_in` | The total number of bytes received by the socket. |
 | `bytes_out` | The total number of bytes sent by the socket. |
+| `elapsed_ms` | If an HTTP request is in progress, this will contain the elapsed request time, in milliseconds. |
 | `ips` | If an HTTP request is in progress, this will contain the array of client IPs, including proxy IPs. |
 | `method` | If an HTTP request is in progress, this will contain the request method (e.g. `GET`, `POST`, etc.) |
 | `uri` | If an HTTP request is in progress, this will contain the full request URI. |
