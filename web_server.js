@@ -25,7 +25,7 @@ module.exports = Class.create({
 	version: require( __dirname + '/package.json' ).version,
 	
 	defaultConfig: {
-		http_private_ip_ranges: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8'],
+		http_private_ip_ranges: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		http_regex_text: "(text|javascript|json|css|html)",
 		http_regex_json: "(javascript|js|json)",
 		http_keep_alives: 1,
@@ -35,7 +35,7 @@ module.exports = Class.create({
 		http_max_upload_size: 32 * 1024 * 1024,
 		http_temp_dir: os.tmpdir(),
 		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
-		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8'],
+		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		http_log_requests: false,
 		http_recent_requests: 10,
 		http_max_connections: 0,

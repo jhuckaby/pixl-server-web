@@ -260,7 +260,7 @@ This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Acc
 
 ```js
 {
-	http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8']
+	http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10']
 }
 ```
 
