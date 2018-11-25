@@ -8,6 +8,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 - [Usage](#usage)
 - [Configuration](#configuration)
 	* [http_port](#http_port)
+	* [http_bind_address](#http_bind_address)
 	* [http_docs_dir](#http_docs_dir)
 	* [http_max_upload_size](#http_max_upload_size)
 	* [http_temp_dir](#http_temp_dir)
@@ -23,6 +24,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 		+ [default](#default)
 		+ [request](#request)
 		+ [close](#close)
+	* [http_keep_alive_timeout](#http_keep_alive_timeout)
 	* [http_max_requests_per_connection](#http_max_requests_per_connection)
 	* [http_gzip_opts](#http_gzip_opts)
 	* [http_default_acl](#http_default_acl)
@@ -65,6 +67,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 - [Stats](#stats)
 	* [The Server Object](#the-server-object)
 	* [The Stats Object](#the-stats-object)
+	* [The Listeners Object](#the-listeners-object)
 	* [The Sockets Object](#the-sockets-object)
 	* [The Recent Object](#the-recent-object)
 	* [Including Custom Stats](#including-custom-stats)
@@ -73,6 +76,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [Determining HTTP or HTTPS](#determining-http-or-https)
 	* [Self-Referencing URLs](#self-referencing-urls)
 	* [Custom Method Handlers](#custom-method-handlers)
+	* [Greenlock](#greenlock)
 - [License](#license)
 
 # Usage
@@ -140,6 +144,18 @@ The configuration for this component is set by passing in a `WebServer` key in t
 
 This is the port to listen on.  The standard web port is 80, but note that only the root user can listen on ports below 1024.
 
+## http_bind_address
+
+Optionally specify an exact local IP address to bind the listener to.  By default this binds to all available addresses on the machine.  Example:
+
+```js
+{
+	"http_bind_address": "127.0.0.1"
+}
+```
+
+This example would cause the server to *only* listen on localhost, and not any external network interface.
+
 ## http_docs_dir
 
 This is the path to the directory to serve static files out of, e.g. `/var/www/html`.
@@ -193,7 +209,7 @@ This param allows you to send back any additional custom HTTP headers with each 
 
 ## http_timeout
 
-This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.  This also doubles as the Keep-Alive timeout, if that feature is enabled (see below).
+This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.
 
 ## http_keep_alives
 
@@ -228,6 +244,18 @@ This **disables** Keep-Alives for all incoming connections by default, unless th
 ```
 
 This completely disables Keep-Alives for all connections.  All requests result in the socket being closed after completion, and each socket only serves one single request.
+
+## http_keep_alive_timeout
+
+This sets the HTTP Keep-Alive idle timeout for all sockets.  If omitted, the Node.js default is 5 seconds.  See [server.keepAliveTimeout](https://nodejs.org/api/http.html#http_server_keepalivetimeout) for details.  Example:
+
+```js
+{
+	"http_keep_alive_timeout": 5000
+}
+```
+
+This feature was introduced in Node.js version 8.  Prior to that, the [http_timeout](#http_timeout) was used as the Keep-Alive timeout.
 
 ## http_max_requests_per_connection
 
@@ -288,7 +316,9 @@ This boolean enables HTTP response header cleansing.  When set to `true` it will
 
 ## https
 
-This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, `https_cert_file` and `https_key_file` for this to work.
+This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, and possibly `https_cert_file` and `https_key_file` for this to work.
+
+Note that if you use [Greenlock](#greenlock) for SSL certificate automation, you can omit `https_cert_file` and `https_key_file`.
 
 ## https_port
 
@@ -556,7 +586,7 @@ If you just want the socket IP by itself, you can get it from `args.request.sock
 
 This will be set to an array of *all* the user's remote IP addresses, taking into account the socket IP and various HTTP headers populated by proxies and load balancers, if applicable.  The header address(es) will come first, if applicable, followed by the socket IP at the end.
 
-The following HTTP headers are scanned for IP addresses to build the `args.ip` array:
+The following HTTP headers are scanned for IP addresses to build the `args.ips` array:
 
 | Header | Syntax | Description |
 |--------|--------|-------------|
@@ -633,7 +663,7 @@ This is a reference to the pixl-server object which handled the request.
 
 ## Request Filters
 
-Filters allow you to preprocess a request, before any handlers get their hands on it.  They can pass data through, manipulate it, or even interrupt and abort requests.  Filters are attached to particular URIs or URI patterns, and multiple may applied to one request, depending on your rules.  They can be asynchronous, and can also pass data between one another if desired.
+Filters allow you to preprocess a request, before any handlers get their hands on it.  They can pass data through, manipulate it, or even interrupt and abort requests.  Filters are attached to particular URIs or URI patterns, and multiple may be applied to one request, depending on your rules.  They can be asynchronous, and can also pass data between one another if desired.
 
 You can attach your own filter methods for intercepting and responding to certain incoming URIs.  So for example, let's say we want to filter the URI `/api/add_user` before the handler gets it, and inject some custom data.  To do this, call the `addURIFilter()` method and pass in the URI string, a name (for logging), and a callback function:
 
@@ -796,6 +826,13 @@ The result is an object in this format:
 		"num_requests": 11,
 		"bytes_in": 0
 	},
+	"listeners": {
+		"http": {
+			"address": "::",
+			"family": "IPv6",
+			"port": 80
+		}
+	},
 	"sockets": {
 		"c109": {
 			"state": "idle",
@@ -889,6 +926,16 @@ The object consists of both simple counters, and min/max/avg objects.  The latte
 The min/max/avg objects are all tagged with an `st` (stat type) key set to `mma` (min/max/avg).  This is simply an identifier for libraries wanting to display or graph the data.
 
 If you add any of your own app's performance metrics via `args.perf`, they will be included in this object as well.  See [Including Custom Stats](#including-custom-stats) below for details.
+
+## The Listeners Object
+
+The `listeners` object contains information about the socket listeners currently open and receiving connections.  There may be one or two of these, depending on if HTTPS/SSL is enabled.  The `listeners` object will contain `http` and/or `https` sub-objects, each with the following properties:
+
+| Property | Description |
+|----------|-------------|
+| `address` | The bound local IP address, or `::` for wildcard IPv6 or `0.0.0.0` for wildcard IPv4 (i.e. all network interfaces). |
+| `port` | The local port number we are listening on. |
+| `family` | The IP family, will be one of `IPv6` or `IPv4`. |
 
 ## The Sockets Object
 
@@ -1021,11 +1068,49 @@ server.WebServer.addMethodHandler( "OPTIONS", "CORS Preflight", function(args, c
 } );
 ```
 
+## Greenlock
+
+pixl-server-web includes support for [Greenlock](https://www.npmjs.com/package/greenlock), which provides free, fully automated HTTPS certificates issued by [Let's Encrypt](https://letsencrypt.org/).
+
+To use Greenlock with pixl-server-web, first you have to install the [greenlock-express](https://www.npmjs.com/package/greenlock-express) module.  We don't include this by default because it greatly expands the dependency tree, including some binary C++ modules (yuck).
+
+```
+npm install greenlock-express
+```
+
+Next, make sure you enable the [https](#https) configuration option, and set a [port](#https_port) (you do *not* have to set [https_cert_file](#https_cert_file) or [https_key_file](#https_key_file) when using Greenlock).
+
+```js
+{
+	"https": true,
+	"https_port": 443
+}
+```
+
+Finally, include a `greenlock` object in your configuration (alongside the `https` property), and fill it with all the required Greenlock parameters:
+
+```js
+{
+	"greenlock": {
+		"version": "draft-11",
+		"server": "https://acme-v02.api.letsencrypt.org/directory",
+		"configDir": "/opt/yourapp/conf/certs",
+		"approvedDomains": [ "mydomain.com", "www.mydomain.com" ],
+		"email": "me@mydomain.com",
+		"agreeTos": true,
+		"communityMember": false,
+		"telemetry": false
+	}
+}
+```
+
+Make sure you follow all the instructions on the [Greenlock](https://www.npmjs.com/package/greenlock-express) module website, because everything has to be perfect, and there are a number of [non-obvious gotchas](https://www.npmjs.com/package/greenlock-express#what-if-the-example-didnt-work).
+
 # License
 
-The MIT License (MIT)
+**The MIT License (MIT)**
 
-Copyright (c) 2015 - 2016 Joseph Huckaby.
+*Copyright (c) 2015 - 2018 Joseph Huckaby.*
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

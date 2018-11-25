@@ -126,12 +126,22 @@ module.exports = Class.create({
 		// listen for tick events to swap stat buffers
 		this.server.on( 'tick', this.tick.bind(this) );
 		
+		// optional greenlock (SSL) middleware
+		if (this.config.get('greenlock')) {
+			// greenlock (let's encrypt) SSL
+			this.greenlock = require('greenlock-express').create(
+				JSON.parse( JSON.stringify(this.config.get('greenlock')) )
+			);
+		}
+		
 		// start listeners
 		this.startHTTP( function(err) {
+			if (err) return callback(err);
+			
 			// also start HTTPS listener?
 			if (self.config.get('https')) {
 				self.startHTTPS( callback );
-			} // https
+			}
 			else callback(err);
 		} );
 	},
@@ -140,11 +150,12 @@ module.exports = Class.create({
 		// start http server
 		var self = this;
 		var port = this.config.get('http_port');
+		var bind_addr = this.config.get('http_bind_address') || '';
 		var max_conns = this.config.get('http_max_connections') || 0;
 		
-		this.logDebug(2, "Starting HTTP server on port: " + port);
+		this.logDebug(2, "Starting HTTP server on port: " + port, bind_addr);
 		
-		this.http = require('http').createServer( function(request, response) {
+		var handler = function(request, response) {
 			if (self.config.get('https_force')) {
 				self.logDebug(6, "Forcing redirect to HTTPS (SSL)");
 				request.headers.ssl = 1; // force SSL url
@@ -164,7 +175,18 @@ module.exports = Class.create({
 			else {
 				self.parseHTTPRequest( request, response );
 			}
-		} );
+		};
+		
+		if (this.config.get('greenlock')) {
+			// greenlock (let's encrypt) SSL middleware
+			this.http = require('http').createServer( 
+				this.greenlock.httpsOptions, 
+				this.greenlock.middleware(handler) 
+			);
+		}
+		else {
+			this.http = require('http').createServer( handler );
+		}
 		
 		this.http.on('connection', function(socket) {
 			var ip = socket.remoteAddress || '';
@@ -237,13 +259,18 @@ module.exports = Class.create({
 			return callback(err);
 		} );
 		
-		this.http.listen( port, function(err) {
+		var listen_opts = { port: port };
+		if (bind_addr) listen_opts.host = bind_addr;
+		
+		this.http.listen( listen_opts, function(err) {
 			if (err) {
 				self.logError('startup', "Failed to start HTTP listener: " + err.message);
 				return callback(err);
 			}
+			var info = self.http.address();
+			self.logDebug(3, "Now listening for HTTP connections", info);
 			if (!port) {
-				port = self.http.address().port;
+				port = info.port;
 				self.config.set('http_port', port);
 				self.logDebug(3, "Actual HTTP listener port chosen: " + port);
 			}
@@ -254,28 +281,43 @@ module.exports = Class.create({
 		if (this.config.get('http_timeout')) {
 			this.http.setTimeout( this.config.get('http_timeout') * 1000 );
 		}
+		if (this.config.get('http_keep_alive_timeout')) {
+			this.http.keepAliveTimeout = this.config.get('http_keep_alive_timeout') * 1000;
+		}
 	},
 	
 	startHTTPS: function(callback) {
 		// start https server
 		var self = this;
 		var port = this.config.get('https_port');
+		var bind_addr = this.config.get('https_bind_address') || this.config.get('http_bind_address') || '';
 		var max_conns = this.config.get('https_max_connections') || this.config.get('http_max_connections') || 0;
 		
-		this.logDebug(2, "Starting HTTPS (SSL) server on port: " + port);
+		this.logDebug(2, "Starting HTTPS (SSL) server on port: " + port, bind_addr );
 		
-		var opts = {
-			cert: fs.readFileSync( this.config.get('https_cert_file') ),
-			key: fs.readFileSync( this.config.get('https_key_file') )
-		};
-		
-		this.https = require('https').createServer( opts, function(request, response) {
+		var handler = function(request, response) {
 			// add a flag in headers for downstream code to detect
 			request.headers['ssl'] = 1;
 			request.headers['https'] = 1;
 			
 			self.parseHTTPRequest( request, response );
-		} );
+		};
+		
+		if (this.config.get('greenlock')) {
+			// greenlock (let's encrypt) SSL middleware
+			this.https = require('https').createServer( 
+				this.greenlock.httpsOptions, 
+				this.greenlock.middleware(handler) 
+			);
+		}
+		else {
+			// standard SSL, cert files need to be specified
+			var opts = {
+				cert: fs.readFileSync( this.config.get('https_cert_file') ),
+				key: fs.readFileSync( this.config.get('https_key_file') )
+			};
+			this.https = require('https').createServer( opts, handler );
+		}
 		
 		this.https.on('secureConnection', function(socket) {
 			var ip = socket.remoteAddress || '';
@@ -342,19 +384,24 @@ module.exports = Class.create({
 			} );
 		} );
 		
-		this.http.once('error', function(err) {
+		this.https.once('error', function(err) {
 			// fatal startup error on HTTPS server, probably EADDRINUSE
 			self.logError('startup', "Failed to start HTTPS listener: " + err.message);
 			return callback(err);
 		} );
 		
-		this.https.listen( port, function(err) {
+		var listen_opts = { port: port };
+		if (bind_addr) listen_opts.host = bind_addr;
+		
+		this.https.listen( listen_opts, function(err) {
 			if (err) {
 				self.logError('startup', "Failed to start HTTPS listener: " + err.message);
 				return callback(err);
 			}
+			var info = self.https.address();
+			self.logDebug(3, "Now listening for HTTPS connections", info);
 			if (!port) {
-				port = self.https.address().port;
+				port = info.port;
 				self.config.set('https_port', port);
 				self.logDebug(3, "Actual HTTPS listener port chosen: " + port);
 			}
@@ -365,6 +412,12 @@ module.exports = Class.create({
 		var timeout_sec = this.config.get('https_timeout') || this.config.get('http_timeout') || 0;
 		if (timeout_sec) {
 			this.https.setTimeout( timeout_sec * 1000 );
+		}
+		if (this.config.get('https_keep_alive_timeout')) {
+			this.https.keepAliveTimeout = this.config.get('https_keep_alive_timeout') * 1000;
+		}
+		else if (this.config.get('http_keep_alive_timeout')) {
+			this.https.keepAliveTimeout = this.config.get('http_keep_alive_timeout') * 1000;
 		}
 	},
 	
@@ -1306,7 +1359,11 @@ module.exports = Class.create({
 	getStats: function() {
 		// get current stats, merged with live socket and request info
 		var socket_info = {};
+		var listener_info = {};
 		var now = (new Date()).getTime();
+		
+		if (this.http) listener_info.http = this.http.address();
+		if (this.https) listener_info.https = this.https.address();
 		
 		for (var key in this.conns) {
 			var socket = this.conns[key];
@@ -1359,6 +1416,7 @@ module.exports = Class.create({
 				version: this.server.__version
 			},
 			stats: stats,
+			listeners: listener_info,
 			sockets: socket_info,
 			recent: this.recent
 		};
