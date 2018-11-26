@@ -1045,6 +1045,17 @@ module.exports = Class.create({
 		// in case the URI handler called sendHTTPResponse() directly, end the process metric
 		if (args.perf.perf.process && !args.perf.perf.process.end) args.perf.end('process');
 		
+		// check for destroyed socket
+		if (args.request.socket.destroyed) {
+			var socket_data = args.request.socket._pixl_data;
+			delete socket_data.current;
+			socket_data.total_elapsed = (new Date()).getTime() - socket_data.time_start;
+			socket_data.url = this.getSelfURL(request, request.url) || request.url;
+			socket_data.ips = args.ips;
+			this.logError('socket', "Socket closed unexpectedly: " + socket_data.id, socket_data);
+			return;
+		}
+		
 		args.state = 'writing';
 		args.perf.begin('write');
 		
