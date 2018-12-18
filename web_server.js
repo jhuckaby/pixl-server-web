@@ -40,7 +40,8 @@ module.exports = Class.create({
 		http_recent_requests: 10,
 		http_max_connections: 0,
 		http_max_requests_per_connection: 0,
-		http_clean_headers: false
+		http_clean_headers: false,
+		http_log_socket_errors: true
 	},
 	
 	conns: null,
@@ -1052,7 +1053,12 @@ module.exports = Class.create({
 			socket_data.total_elapsed = (new Date()).getTime() - socket_data.time_start;
 			socket_data.url = this.getSelfURL(request, request.url) || request.url;
 			socket_data.ips = args.ips;
-			this.logError('socket', "Socket closed unexpectedly: " + socket_data.id, socket_data);
+			if (this.config.get('http_log_socket_errors')) {
+				this.logError('socket', "Socket closed unexpectedly: " + socket_data.id, socket_data);
+			}
+			else {
+				this.logDebug(9, "Socket closed unexpectedly: " + socket_data.id, socket_data);
+			}
 			return;
 		}
 		

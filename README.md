@@ -33,6 +33,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [http_recent_requests](#http_recent_requests)
 	* [http_max_connections](#http_max_connections)
 	* [http_clean_headers](#http_clean_headers)
+	* [http_log_socket_errors](#http_log_socket_errors)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_cert_file](#https_cert_file)
@@ -313,6 +314,22 @@ This integer specifies the maximum number of concurrent connections to allow.  I
 ## http_clean_headers
 
 This boolean enables HTTP response header cleansing.  When set to `true` it will strip all illegal characters from your response header values, which otherwise could cause Node.js to crash.  It defaults to `false`.  The regular expression it uses is `/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g`.
+
+## http_log_socket_errors
+
+This boolean enables logging socket related errors, specifically sockets being closed unexpectedly (i.e. client closed socket, or some network error caused socket to abort).  This defaults to `true`, meaning these will be logged as errors.  If this generates too much log noise for your production stack, you can set the configuration property to `false`, which will only log a level 9 debug event.  Example:
+
+```js
+{
+	"http_log_socket_errors": false
+}
+```
+
+Example error log entry:
+
+```
+[1545121086.42][2018-12-18 00:18:06][myserver01.mycompany.com][29801][WebServer][error][socket][Socket closed unexpectedly: c43593][][][{"id":"c43593","proto":"http","port":80,"time_start":1545120267519,"num_requests":886,"bytes_in":652041,"bytes_out":1307291,"total_elapsed":818901,"url":"http://mycompany.com/example/url","ips":["1.1.1.1","2.2.2.2"]}]
+```
 
 ## https
 
@@ -637,7 +654,7 @@ If the request was a HTTP POST and contained any file uploads, they will be acce
 |----------|-------------|
 | `size` | The size of the uploaded file in bytes. |
 | `path` | The path to the temp file on disk containing the file contents. |
-| `name` | The name of the file POST parameter. |
+| `name` | The filename of the file as provided by the client. |
 | `type` | The mime type of the file, according to the client. |
 | `lastModifiedDate` | A date object containing the last mod date of the file, if available. |
 
