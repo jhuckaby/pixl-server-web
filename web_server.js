@@ -160,14 +160,21 @@ module.exports = Class.create({
 			if (self.config.get('https_force')) {
 				self.logDebug(6, "Forcing redirect to HTTPS (SSL)");
 				request.headers.ssl = 1; // force SSL url
+				
+				var args = {
+					request: request,
+					response: response,
+					perf: new Perf()
+				};
+				args.perf.begin();
+				
 				var redirect_url = self.getSelfURL(request, request.url);
 				if (!redirect_url) {
-					self.sendHTTPResponse( { response: response }, "400 Bad Request", {}, "" );
+					self.sendHTTPResponse( args, "400 Bad Request", {}, "" );
 					return;
 				}
 				
-				self.sendHTTPResponse( 
-					{ response: response }, 
+				self.sendHTTPResponse( args, 
 					"301 Moved Permanently", 
 					{ 'Location': redirect_url }, 
 					"" // empty body
@@ -1044,7 +1051,7 @@ module.exports = Class.create({
 		else headers = {};
 		
 		// in case the URI handler called sendHTTPResponse() directly, end the process metric
-		if (args.perf.perf.process && !args.perf.perf.process.end) args.perf.end('process');
+		if (args.perf && args.perf.perf.process && !args.perf.perf.process.end) args.perf.end('process');
 		
 		// check for destroyed socket
 		if (args.request.socket.destroyed) {
