@@ -617,7 +617,7 @@ module.exports = Class.create({
 		request.socket._pixl_data.current = args;
 		
 		// post or get/head
-		if (request.method == 'POST') {
+		if ((request.method != 'HEAD') && (request.headers['content-length'] || request.headers['transfer-encoding'])) {
 			var content_type = request.headers['content-type'] || '';
 			
 			if (content_type.match(/(multipart|urlencoded)/i)) {
@@ -636,7 +636,7 @@ module.exports = Class.create({
 				form.parse(request, function(err, _fields, _files) {
 					args.perf.end('read');
 					if (err) {
-						self.logError(400, "Error processing POST from: " + ip + ": " + request.url + ": " + err);
+						self.logError(400, "Error processing data from: " + ip + ": " + request.url + ": " + err);
 						self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
 						return;
 					}
@@ -662,7 +662,7 @@ module.exports = Class.create({
 					
 					self.logDebug(10, "Upload progress: " + total_bytes + " of " + bytesExpected + " bytes");
 					if (total_bytes > bytesMax) {
-						self.logError(413, "Error processing POST from: " + ip + ": " + request.url + ": Max POST size exceeded");
+						self.logError(413, "Error processing data from: " + ip + ": " + request.url + ": Max data size exceeded");
 						request.socket.end();
 						return;
 					}
@@ -677,7 +677,7 @@ module.exports = Class.create({
 							args.params = JSON.parse( body.toString() );
 						}
 						catch (e) {
-							self.logError(400, "Error processing POST from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e);
+							self.logError(400, "Error processing data from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e);
 							self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
 							return;
 						}

@@ -101,7 +101,8 @@ module.exports = {
 						cookies: args.cookies,
 						files: args.files,
 						headers: args.request.headers,
-						socket_id: args.request.socket._pixl_data.id || 0
+						socket_id: args.request.socket._pixl_data.id || 0,
+						method: args.request.method
 					} );
 				} );
 				
@@ -359,6 +360,319 @@ module.exports = {
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
 					
+					test.done();
+				} 
+			);
+		},
+		
+		// HTTP PUT
+		function testStandardPut(test) {
+			request.put( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					// parse json in response
+					var json = null;
+					try { json = JSON.parse( data.toString() ); }
+					catch (err) {
+						test.ok( false, "Error parsing JSON: " + err );
+						test.done();
+					}
+					
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "PUT", "Request method is incorrect: " + json.method + " (expected PUT)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// HTTP PUT with request body
+		function testStandardPutWithData(test) {
+			request.put( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'X-Test': "Test"
+					},
+					data: {
+						myparam: "foobar4567"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					// parse json in response
+					var json = null;
+					try { json = JSON.parse( data.toString() ); }
+					catch (err) {
+						test.ok( false, "Error parsing JSON: " + err );
+						test.done();
+					}
+					
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.params, "Found params object in JSON response" );
+					test.ok( json.params.myparam == "foobar4567", "Correct param in JSON response: " + json.params.myparam );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "PUT", "Request method is incorrect: " + json.method + " (expected PUT)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// JSON HTTP PUT
+		function testJSONPut(test) {
+			// test simple JSON HTTP PUT request to webserver backend
+			request.json( 'http://127.0.0.1:3020/json', false,
+				{
+					method: "PUT",
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "PUT", "Request method is incorrect: " + json.method + " (expected PUT)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// JSON HTTP PUT with request body
+		function testJSONPutWithData(test) {
+			// test simple JSON HTTP PUT request to webserver backend
+			request.json( 'http://127.0.0.1:3020/json', { myparam: "foobar4567" },
+				{
+					method: "PUT",
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// request content is echoed too
+					test.ok( !!json.params, "Found params object in JSON response" );
+					test.ok( json.params.myparam == "foobar4567", "Correct param in JSON response: " + json.params.myparam );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "PUT", "Request method is incorrect: " + json.method + " (expected PUT)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// HTTP DELETE
+		function testStandardDelete(test) {
+			request.delete( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					// parse json in response
+					var json = null;
+					try { json = JSON.parse( data.toString() ); }
+					catch (err) {
+						test.ok( false, "Error parsing JSON: " + err );
+						test.done();
+					}
+					
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "DELETE", "Request method is incorrect: " + json.method + " (expected DELETE)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// HTTP DELETE with request body
+		function testStandardDeleteWithData(test) {
+			request.delete( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'X-Test': "Test"
+					},
+					data: {
+						myparam: "foobar4567"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					// parse json in response
+					var json = null;
+					try { json = JSON.parse( data.toString() ); }
+					catch (err) {
+						test.ok( false, "Error parsing JSON: " + err );
+						test.done();
+					}
+					
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.params, "Found params object in JSON response" );
+					test.ok( json.params.myparam == "foobar4567", "Correct param in JSON response: " + json.params.myparam );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "DELETE", "Request method is incorrect: " + json.method + " (expected DELETE)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// JSON HTTP DELETE
+		function testJSONDelete(test) {
+			// test simple JSON HTTP DELETE request to webserver backend
+			request.json( 'http://127.0.0.1:3020/json', false,
+				{
+					method: "DELETE",
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "DELETE", "Request method is incorrect: " + json.method + " (expected DELETE)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// JSON HTTP DELETE with request body
+		function testJSONDeleteWithData(test) {
+			// test simple JSON HTTP DELETE request to webserver backend
+			request.json( 'http://127.0.0.1:3020/json', { myparam: "foobar4567" },
+				{
+					method: "DELETE",
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					test.ok( !!json.params, "Found params object in JSON response" );
+					test.ok( json.params.myparam == "foobar4567", "Correct param in JSON response: " + json.params.myparam );
+					
+					// make sure echoed request method is correct
+					test.ok( json.method == "DELETE", "Request method is incorrect: " + json.method + " (expected DELETE)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// HTTP HEAD
+		function testStandardHead(test) {
+			request.head( 'http://127.0.0.1:3020/spacer.gif',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/image\/gif/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
+					
+					test.ok( !resp.headers['content-encoding'], "Content-Encoding header should NOT be present!" );
+					test.ok( resp.headers['content-length'] == 43, "spacer.gif is not 43 bytes as expected: " + resp.headers['content-length'] );
 					test.done();
 				} 
 			);
