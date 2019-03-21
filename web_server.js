@@ -324,6 +324,10 @@ module.exports = Class.create({
 				cert: fs.readFileSync( this.config.get('https_cert_file') ),
 				key: fs.readFileSync( this.config.get('https_key_file') )
 			};
+			if (this.config.get('https_ca_file')) {
+				// optional chain.pem or the like
+				opts.ca = fs.readFileSync( this.config.get('https_ca_file') );
+			}
 			this.https = require('https').createServer( opts, handler );
 		}
 		

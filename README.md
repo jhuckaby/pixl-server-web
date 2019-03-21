@@ -38,6 +38,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [https_port](#https_port)
 	* [https_cert_file](#https_cert_file)
 	* [https_key_file](#https_key_file)
+	* [https_ca_file](#https_ca_file)
 	* [https_force](#https_force)
 	* [https_header_detect](#https_header_detect)
 	* [https_timeout](#https_timeout)
@@ -344,11 +345,15 @@ If HTTPS mode is enabled, this is the port to listen on for secure requests.  Th
 
 ## https_cert_file
 
-If HTTPS mode is enabled, this should point to your SSL certificate file on disk.  The certificate file typically has a `.crt` filename extension.
+If HTTPS mode is enabled, this should point to your SSL certificate file on disk.  The certificate file typically has a `.crt` filename extension, or possibly `cert.pem` if using [Let's Encrypt](https://letsencrypt.org/).
 
 ## https_key_file
 
-If HTTPS mode is enabled, this should point to your SSL key file on disk.  The key file typically has a `.key` filename extension.
+If HTTPS mode is enabled, this should point to your SSL private key file on disk.  The key file typically has a `.key` filename extension, or possibly `privkey.pem` if using [Let's Encrypt](https://letsencrypt.org/).
+
+## https_ca_file
+
+If HTTPS mode is enabled, this should point to your SSL chain file on disk.  This is optional, as some SSL certificates do not provide one.  If using [Let's Encrypt](https://letsencrypt.org/) this file will be named `chain.pem`.
 
 ## https_force
 
@@ -1137,7 +1142,8 @@ Your SSL certificates are now ready to use in pixl-server-web.  Simply add the f
 "https": true,
 "https_port": 443,
 "https_cert_file": "/etc/letsencrypt/live/mydomain.com/cert.pem",
-"https_key_file": "/etc/letsencrypt/live/mydomain.com/privkey.pem"
+"https_key_file": "/etc/letsencrypt/live/mydomain.com/privkey.pem",
+"https_ca_file": "/etc/letsencrypt/live/mydomain.com/chain.pem"
 ```
 
 Then start your server as root and it should accept `https://` requests on port 443.
