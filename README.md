@@ -77,6 +77,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [Determining HTTP or HTTPS](#determining-http-or-https)
 	* [Self-Referencing URLs](#self-referencing-urls)
 	* [Custom Method Handlers](#custom-method-handlers)
+	* [Let's Encrypt SSL Certificates](#lets-encrypt-ssl-certificates)
 	* [Greenlock](#greenlock)
 - [License](#license)
 
