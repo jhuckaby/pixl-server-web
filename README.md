@@ -1085,9 +1085,81 @@ server.WebServer.addMethodHandler( "OPTIONS", "CORS Preflight", function(args, c
 } );
 ```
 
+## Let's Encrypt SSL Certificates
+
+Here are instructions for using [Let's Encrypt](https://letsencrypt.org/) SSL certificates with pixl-server-web, specifically how to get your certificate issued and how to setup automatic renewal.
+
+The first thing you should do is make sure your server has a public IP address, and point your domain name to it using a DNS "A" record.  For these examples I will be using the domain `mydomain.com`.
+
+Next, you will need to manually install [certbot](https://certbot.eff.org) on your server.  The easiest way to do this is to use the wrapper script [certbot-auto](https://certbot.eff.org/docs/install.html#certbot-auto), like this:
+
+```sh
+mkdir -p /usr/local/bin
+curl -s https://dl.eff.org/certbot-auto > /usr/local/bin/certbot-auto
+chmod a+x /usr/local/bin/certbot-auto
+```
+
+We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) method for authorization.  Make sure you have a web server running on your server and listening on port 80 (only plain HTTP is required at this point).  Assuming your web server's document root path is `/var/www/html` issue this command:
+
+```sh
+/usr/local/bin/certbot-auto certonly --webroot -w /var/www/html -d mydomain.com
+```
+
+If you need certificates for multiple subdomains, you can add them to the end of the command, delimited by spaces, e.g. `-d mydomain.com www.mydomain.com`.
+
+Then follow the instructions on the console.  Certbot will ask you a number of questions including asking you for your e-mail address, accepting terms of service, etc.  When you are done, you should see a success message like this:
+
+```
+IMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/mydomain.com/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/mydomain.com/privkey.pem
+   Your cert will expire on 2019-06-19. To obtain a new or tweaked
+   version of this certificate in the future, simply run certbot-auto
+   again. To non-interactively renew *all* of your certificates, run
+   "certbot-auto renew"
+ - Your account credentials have been saved in your Certbot
+   configuration directory at /etc/letsencrypt. You should make a
+   secure backup of this folder now. This configuration directory will
+   also contain certificates and private keys obtained by Certbot so
+   making regular backups of this folder is ideal.
+ - If you like Certbot, please consider supporting our work by:
+
+   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+   Donating to EFF:                    https://eff.org/donate-le
+```
+
+Your SSL certificates are now ready to use in pixl-server-web.  Simply add the following properties to your `WebServer` configuration object, replacing `mydomain.com` with your own domain name:
+
+```js
+"https": true,
+"https_port": 443,
+"https_cert_file": "/etc/letsencrypt/live/mydomain.com/cert.pem",
+"https_key_file": "/etc/letsencrypt/live/mydomain.com/privkey.pem"
+```
+
+Then start your server as root and it should accept `https://` requests on port 443.
+
+The final step is to make sure your certificates auto-renew before they expire (every 90 days).  The `certbot-auto` command takes care of this, but we have to call it ourselves, i.e. from a [crontab](https://en.wikipedia.org/wiki/Cron).  It is recommended that you run it every night, noting that it takes no action unless your certificates are about to expire (i.e. within 30 days).
+
+If your certificates were renewed, you will also need to restart pixl-server-web.  The `certbot-auto` command can also do this for you, using two special command-line hooks.  Example:
+
+```sh
+/usr/local/bin/certbot-auto renew --pre-hook "/opt/myapp/bin/control.sh stop" --post-hook "/opt/myapp/bin/control.sh start"
+```
+
+Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily at 4 AM local server time.  Note that the command does produce output, even if your certs are not renewed, so you may want to silence it:
+
+```sh
+/usr/local/bin/certbot-auto renew --pre-hook "/opt/myapp/bin/control.sh stop" --post-hook "/opt/myapp/bin/control.sh start" >/dev/null 2>&1
+```
+
+The command produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
+
 ## Greenlock
 
-pixl-server-web includes support for [Greenlock](https://www.npmjs.com/package/greenlock), which provides free, fully automated HTTPS certificates issued by [Let's Encrypt](https://letsencrypt.org/).
+pixl-server-web includes support for [Greenlock](https://www.npmjs.com/package/greenlock), which provides free, fully automated HTTPS certificates issued by [Let's Encrypt](https://letsencrypt.org/).  It handles auto-renewal as well, however in my experience this only works some of the time.
 
 To use Greenlock with pixl-server-web, first you have to install the [greenlock-express](https://www.npmjs.com/package/greenlock-express) module.  We don't include this by default because it greatly expands the dependency tree, including some binary C++ modules (yuck).
 
@@ -1127,7 +1199,7 @@ Make sure you follow all the instructions on the [Greenlock](https://www.npmjs.c
 
 **The MIT License (MIT)**
 
-*Copyright (c) 2015 - 2018 Joseph Huckaby.*
+*Copyright (c) 2015 - 2019 Joseph Huckaby.*
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
