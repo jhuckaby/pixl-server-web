@@ -976,6 +976,12 @@ module.exports = Class.create({
 		var response = args.response;
 		this.logDebug(9, "Serving static file for: " + args.request.url);
 		
+		// catch double-callback
+		if (args.state == 'writing') {
+			this.logError('write', "Warning: Double call to sendStaticResponse on same request detected.  Aborting second call.");
+			return;
+		}
+		
 		args.state = 'writing';
 		args.perf.begin('write');
 		
@@ -1070,6 +1076,12 @@ module.exports = Class.create({
 			else {
 				this.logDebug(9, "Socket closed unexpectedly: " + socket_data.id, socket_data);
 			}
+			return;
+		}
+		
+		// catch double-callback
+		if (args.state == 'writing') {
+			this.logError('write', "Warning: Double call to sendHTTPResponse on same request detected.  Aborting second call.");
 			return;
 		}
 		
@@ -1254,7 +1266,14 @@ module.exports = Class.create({
 		if (headers && this.config.get('http_clean_headers')) {
 			// prevent bad characters in headers, which can crash node's writeHead() call
 			for (var key in headers) {
-				headers[key] = headers[key].toString().replace(/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+				if (typeof(headers[key]) == 'object') {
+					for (var idx = 0, len = headers[key].length; idx < len; idx++) {
+						headers[key][idx] = headers[key][idx].toString().replace(/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+					}
+				}
+				else {
+					headers[key] = headers[key].toString().replace(/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+				}
 			}
 		}
 		
