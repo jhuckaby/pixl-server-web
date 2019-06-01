@@ -1148,21 +1148,21 @@ Your SSL certificates are now ready to use in pixl-server-web.  Simply add the f
 
 Then start your server as root and it should accept `https://` requests on port 443.
 
-The final step is to make sure your certificates auto-renew before they expire (every 90 days).  The `certbot-auto` command takes care of this, but we have to call it ourselves, i.e. from a [crontab](https://en.wikipedia.org/wiki/Cron).  It is recommended that you run it every night, noting that it takes no action unless your certificates are about to expire (i.e. within 30 days).
+The final step is to make sure your certificates auto-renew before they expire (every 90 days).  The `certbot-auto` command takes care of this, but we have to take care of invoking it ourselves, i.e. from a [crontab](https://en.wikipedia.org/wiki/Cron).  It is recommended that you run the command every night, noting that it takes no action unless your certificates are about to expire (i.e. within 30 days).
 
-If your certificates were renewed, you will also need to restart pixl-server-web.  The `certbot-auto` command can also do this for you, using two special command-line hooks.  Example:
+If your certificates were renewed, you will also need to restart pixl-server-web.  The `certbot-auto` command can also do this for you, using a special `--post-hook` command-line argument.  Example:
 
 ```sh
-/usr/local/bin/certbot-auto renew --pre-hook "/opt/myapp/bin/control.sh stop" --post-hook "/opt/myapp/bin/control.sh start"
+/usr/local/bin/certbot-auto renew --post-hook "/opt/myapp/bin/control.sh restart"
 ```
 
 Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily at 4 AM local server time.  Note that the command does produce output, even if your certs are not renewed, so you may want to silence it:
 
 ```sh
-/usr/local/bin/certbot-auto renew --pre-hook "/opt/myapp/bin/control.sh stop" --post-hook "/opt/myapp/bin/control.sh start" >/dev/null 2>&1
+/usr/local/bin/certbot-auto renew --post-hook "/opt/myapp/bin/control.sh restart" >/dev/null 2>&1
 ```
 
-The command produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
+Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
 
 ## Greenlock
 
