@@ -27,6 +27,8 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [http_keep_alive_timeout](#http_keep_alive_timeout)
 	* [http_max_requests_per_connection](#http_max_requests_per_connection)
 	* [http_gzip_opts](#http_gzip_opts)
+	* [http_enable_brotli](#http_enable_brotli)
+	* [http_brotli_opts](#http_brotli_opts)
 	* [http_default_acl](#http_default_acl)
 	* [http_log_requests](#http_log_requests)
 	* [http_regex_log](#http_regex_log)
@@ -185,13 +187,15 @@ This is a string to send back to the client with every request, as the `Server` 
 
 ## http_gzip_text
 
-This is a boolean indicating whether or not to compress text responses using GZip ([zlib](https://nodejs.org/api/zlib.html) software compression in Node.js).  The default is `false`.
+This is a boolean indicating whether or not to compress text responses using [zlib](https://nodejs.org/api/zlib.html) software compression in Node.js.  The default is `false`.
+
+Despite the property name containing `gzip`, the actual compression format is chosen automatically based on the `Accept-Encoding` request header sent from the client.  The supported formats are Brotli (see [http_enable_brotli](#http_enable_brotli)), Gzip and Deflate, chosen in that order.
 
 Note that you can force compression on an individual response basis, by including a `X-Compress: 1` response header in your URI handler code.  The web server will detect this header and force-enable compression on the data, regardless of the `http_gzip_text` or `http_regex_text` settings.  Note that it still honors the client `Accept-Encoding` header, and will only enable compression if this request header is present and contains `gzip`.
 
 ## http_regex_text
 
-This is a regular expression string which is compared against the `Content-Type` response header.  When this matches, and [http_gzip_text](#http_gzip_text) is enabled, this will kick in GZip compression.  It defaults to `(text|javascript|json|css|html)`.
+This is a regular expression string which is compared against the `Content-Type` response header.  When this matches, and [http_gzip_text](#http_gzip_text) is enabled, this will kick in compression.  It defaults to `(text|javascript|json|css|html)`.
 
 ## http_regex_json
 
@@ -284,6 +288,29 @@ This allows you to set various options for the automatic GZip compression in HTT
 ```
 
 Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#zlib_class_options) for more details on what can be set here.
+
+## http_enable_brotli
+
+Set this to `true` to enable [Brotli](https://en.wikipedia.org/wiki/Brotli) compression support.  The default is `false` (disabled).  When enabled, and the client advertises support via the `Accept-Encoding` request header, and [http_gzip_text](#http_gzip_text) is enabled, and the response `Content-Type` matches the [http_regex_text](#http_regex_text) pattern, Brotli will be used.
+
+Brotli is a newer compression format written by Google.  It was added to Node.js in v10.16.0.  With careful tuning (see below) you can produce equivalent payload sizes to Gzip but considerably faster (i.e. less CPU), or even up to ~20% smaller sizes than Gzip but much slower (i.e. more CPU).
+
+## http_brotli_opts
+
+If [http_enable_brotli](#http_enable_brotli) is set to `true`, then you can set various options via the `http_brotli_opts` configuration property.  Example:
+
+```js
+{
+	http_brotli_opts: {
+		chunkSize: 16 * 1024,
+		mode: "text",
+		level: 4,
+		hint: 0
+	}
+}
+```
+
+See the Node [Brotli Class Options](https://nodejs.org/api/zlib.html#zlib_class_brotlioptions) for more details on what can be set here.  Note that `mode` is a convenience shortcut for `zlib.constants.BROTLI_PARAM_MODE` (which can set to `text`, `font` or `generic`), `level` is a shortcut for `zlib.constants.BROTLI_PARAM_QUALITY`, and `hint` is a shortcut for `zlib.constants.BROTLI_PARAM_SIZE_HINT`.
 
 ## http_default_acl
 

@@ -1,6 +1,6 @@
 {
 	"name": "pixl-server-web",
-	"version": "1.1.19",
+	"version": "1.1.20",
 	"description": "A web server component for the pixl-server framework.",
 	"author": "Joseph Huckaby <jhuckaby@gmail.com>",
 	"homepage": "https://github.com/jhuckaby/pixl-server-web",
@@ -32,7 +32,7 @@
 	},
 	"devDependencies": {
 		"pixl-unit": "^1.0.0",
-		"pixl-request": "^1.0.25"
+		"pixl-request": "^1.0.26"
 	},
 	"scripts": {
 		"test": "pixl-unit test/test.js"

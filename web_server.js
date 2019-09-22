@@ -1,6 +1,6 @@
 // Simple HTTP / HTTPS Web Server
 // A component for the pixl-server daemon framework.
-// Copyright (c) 2015 - 2018 Joseph Huckaby
+// Copyright (c) 2015 - 2019 Joseph Huckaby
 // Released under the MIT License
 
 var fs = require('fs');
@@ -34,7 +34,16 @@ module.exports = Class.create({
 		http_static_ttl: 0,
 		http_max_upload_size: 32 * 1024 * 1024,
 		http_temp_dir: os.tmpdir(),
-		http_gzip_opts: { level: zlib.Z_DEFAULT_COMPRESSION, memLevel: 8 },
+		http_gzip_opts: {
+			level: zlib.constants.Z_DEFAULT_COMPRESSION, 
+			memLevel: 8 
+		},
+		http_brotli_opts: {
+			chunkSize: 16 * 1024,
+			mode: "text",
+			level: 4
+		},
+		http_enable_brotli: false,
 		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		http_log_requests: false,
 		http_recent_requests: 10,
@@ -74,6 +83,33 @@ module.exports = Class.create({
 		this.keepRecentRequests = this.config.get('http_recent_requests');
 		this.stats = { current: {}, last: {} };
 		this.recent = [];
+		
+		// brotli compression support
+		this.hasBrotli = !!zlib.BrotliCompress && this.config.get('http_enable_brotli');
+		this.acceptEncodingMatch = this.hasBrotli ? /\b(gzip|deflate|br)\b/i : /\b(gzip|deflate)\b/i;
+		
+		// map friendly keys to brotli constants
+		var brotli_opts = this.config.get('http_brotli_opts');
+		if ("mode" in brotli_opts) {
+			switch (brotli_opts.mode) {
+				case 'text': brotli_opts.mode = zlib.constants.BROTLI_MODE_TEXT; break;
+				case 'font': brotli_opts.mode = zlib.constants.BROTLI_MODE_FONT; break;
+				case 'generic': brotli_opts.mode = zlib.constants.BROTLI_MODE_GENERIC; break;
+			}
+			if (!brotli_opts.params) brotli_opts.params = {};
+			brotli_opts.params[ zlib.constants.BROTLI_PARAM_MODE ] = brotli_opts.mode;
+			delete brotli_opts.mode;
+		}
+		if ("level" in brotli_opts) {
+			if (!brotli_opts.params) brotli_opts.params = {};
+			brotli_opts.params[ zlib.constants.BROTLI_PARAM_QUALITY ] = brotli_opts.level;
+			delete brotli_opts.level;
+		}
+		if ("hint" in brotli_opts) {
+			if (!brotli_opts.params) brotli_opts.params = {};
+			brotli_opts.params[ zlib.constants.BROTLI_PARAM_SIZE_HINT ] = brotli_opts.hint;
+			delete brotli_opts.hint;
+		}
 		
 		// keep-alives
 		this.keepAlives = this.config.get('http_keep_alives');
@@ -1186,40 +1222,62 @@ module.exports = Class.create({
 			!headers['Content-Encoding'] && // do not encode if already encoded
 			args.request && 
 			args.request.headers['accept-encoding'] && 
-			args.request.headers['accept-encoding'].match(/\bgzip\b/i)) {
+			args.request.headers['accept-encoding'].match(self.acceptEncodingMatch)) {
+			
+			// prep encoding compression
+			var compressor = null;
+			var zlib_opts = null;
+			var zlib_func = '';
+			var accept_encoding = args.request.headers['accept-encoding'].toLowerCase();
+			
+			if (self.hasBrotli && accept_encoding.match(/\b(br)\b/)) {
+				// prefer brotli first, if supported by Node.js
+				zlib_func = 'brotliCompress';
+				zlib_opts = self.config.get('http_brotli_opts') || {};
+				headers['Content-Encoding'] = 'br';
+				if (is_stream) compressor = zlib.createBrotli( zlib_opts );
+			}
+			else if (accept_encoding.match(/\b(gzip)\b/)) {
+				// prefer gzip second
+				zlib_func = 'gzip';
+				zlib_opts = self.config.get('http_gzip_opts') || {};
+				headers['Content-Encoding'] = 'gzip';
+				if (is_stream) compressor = zlib.createGzip( zlib_opts );
+			}
+			else if (accept_encoding.match(/\b(deflate)\b/)) {
+				// prefer deflate third
+				zlib_func = 'deflate';
+				zlib_opts = self.config.get('http_gzip_opts') || {}; // yes, same opts as gzip
+				headers['Content-Encoding'] = 'deflate';
+				if (is_stream) compressor = zlib.createDeflate( zlib_opts );
+			}
 			
 			if (is_stream) {
-				// stream pipe
-				self.logDebug(9, "Sending streaming text output with gzip encoding");
-				headers['Content-Encoding'] = 'gzip';
-				
-				self.logDebug(9, "Sending streaming HTTP response: " + status, headers);
+				// send response as stream pipe
+				self.logDebug(9, "Sending compressed streaming HTTP response with " + zlib_func + ": " + status, headers);
 				
 				if (self.writeHead( args, http_code, http_status, headers )) {
-					var gzip = zlib.createGzip( self.config.get('http_gzip_opts') || {} );
 					meter = new StreamMeter();
-					
-					body.pipe( gzip ).pipe( meter ).pipe( response );
-					
+					body.pipe( compressor ).pipe( meter ).pipe( response );
 					self.logDebug(9, "Request complete");
 				}
 			}
 			else {
-				zlib.gzip(body, self.config.get('http_gzip_opts') || {}, function(err, data) {
+				// send response as buffer
+				zlib[ zlib_func ]( body, zlib_opts, function(err, data) {
 					if (err) {
 						// should never happen
-						self.logError('gzip', "Failed to gzip compress content: " + err);
+						self.logError('zlib', "Failed to compress content with " + zlib_func + ": " + err);
 						data = body;
 					}
 					else {
 						// no error
 						body = null; // free up memory
-						self.logDebug(9, "Compressed text output with gzip: " + headers['Content-Length'] + " bytes down to: " + data.length + " bytes");
+						self.logDebug(9, "Compressed text output with " + zlib_func + ": " + headers['Content-Length'] + " bytes down to: " + data.length + " bytes");
 						headers['Content-Length'] = data.length;
-						headers['Content-Encoding'] = 'gzip';
 					}
 					
-					self.logDebug(9, "Sending HTTP response: " + status, headers);
+					self.logDebug(9, "Sending compressed HTTP response with " + zlib_func + ": " + status, headers);
 					
 					// send data
 					if (self.writeHead( args, http_code, http_status, headers )) {
@@ -1229,9 +1287,9 @@ module.exports = Class.create({
 						args.perf.count('bytes_out', data.length);
 						self.logDebug(9, "Request complete");
 					}
-				}); // zlib.gzip
+				}); // zlib
 			} // buffer or string
-		} // gzip
+		} // compress
 		else {
 			// no compression
 			if (is_stream) {

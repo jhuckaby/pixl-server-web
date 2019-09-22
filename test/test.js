@@ -1,5 +1,5 @@
 // Unit tests for pixl-server-web
-// Copyright (c) 2017 Joseph Huckaby
+// Copyright (c) 2017 - 2019 Joseph Huckaby
 // Released under the MIT License
 
 var os = require('os');
@@ -15,9 +15,6 @@ var request = new PixlRequest();
 
 var http = require('http');
 var agent = new http.Agent({ keepAlive: true });
-
-// allow SSL to work with snakeoil cert
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 process.chdir( __dirname );
 
@@ -41,6 +38,7 @@ var server = new PixlServer({
 			"http_static_index": "index.html",
 			"http_server_signature": "WebServerTest 1.0",
 			"http_gzip_text": 1,
+			"http_enable_brotli": 1,
 			"http_timeout": 5,
 			"http_response_headers": {
 				"Via": "WebServerTest 1.0"
@@ -142,8 +140,8 @@ module.exports = {
 					callback( server.WebServer.getStats() );
 				} );
 				
-				web_server.addURIHandler( '/binary-force-gzip', 'Force GZIP Test', function(args, callback) {
-					// send custom gzip response
+				web_server.addURIHandler( '/binary-force-compress', 'Force Compress Test', function(args, callback) {
+					// send custom compressed response
 					callback( 
 						"200 OK", 
 						{ 'Content-Type': "image/gif", 'X-Compress': 1 },
@@ -758,11 +756,11 @@ module.exports = {
 			);
 		},
 		
-		// binary force gzip
-		// this is a binary file (typically not compressed), but the handler is forcing gzip
+		// binary force compress
+		// this is a binary file (typically not compressed), but the handler is forcing compression
 		function testBinaryForceCompress(test) {
 			// test HTTP GET to webserver backend, make sure response is compressed
-			request.get( 'http://127.0.0.1:3020/binary-force-gzip',
+			request.get( 'http://127.0.0.1:3020/binary-force-compress',
 				function(err, resp, data, perf) {
 					test.ok( !err, "No error from PixlRequest: " + err );
 					test.ok( !!resp, "Got resp from PixlRequest" );
@@ -773,11 +771,126 @@ module.exports = {
 					test.ok( !!resp.headers['content-type'].match(/image\/gif/), "Content-Type header contains correct value" );
 					
 					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
-					test.ok( !!resp.headers['content-encoding'].match(/gzip/), "Content-Encoding header contains gzip" );
+					test.ok( !!resp.headers['content-encoding'].match(/\b(deflate|gzip|br)\b/), "Content-Encoding header contains appropriate value" );
 					
 					test.ok( !!data, "Got data in response" );
 					test.ok( data.length === fs.readFileSync('spacer.gif').length, "spacer.gif content is correct" );
 					
+					test.done();
+				} 
+			);
+		},
+		
+		// no encoding
+		function testNoEncoding(test) {
+			// test simple HTTP GET to webserver backend
+			// do not accept any encoding from client side
+			request.get( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'Accept-Encoding': "none"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/json/), "Content-Type header contains correct value" );
+					
+					test.ok( !resp.headers['content-encoding'], "Content-Encoding header should NOT be present!" );
+					
+					test.ok( !!data, "Got data in response" );
+					test.ok( !!data.length, "Data has non-zero length" );
+					test.done();
+				} 
+			);
+		},
+		
+		// deflate encoding
+		function testDeflateEncoding(test) {
+			// test simple HTTP GET to webserver backend
+			// only accept deflate encoding from client side
+			request.get( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'Accept-Encoding': "deflate"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/json/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/\b(deflate)\b/), "Content-Encoding header contains deflate" );
+					
+					test.ok( !!data, "Got data in response" );
+					test.ok( !!data.length, "Data has non-zero length" );
+					test.done();
+				} 
+			);
+		},
+		
+		// gzip encoding
+		function testGzipEncoding(test) {
+			// test simple HTTP GET to webserver backend
+			// only accept gzip encoding from client side
+			request.get( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'Accept-Encoding': "gzip"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/json/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/\b(gzip)\b/), "Content-Encoding header contains gzip" );
+					
+					test.ok( !!data, "Got data in response" );
+					test.ok( !!data.length, "Data has non-zero length" );
+					test.done();
+				} 
+			);
+		},
+		
+		// brotli encoding
+		function testBrotliEncoding(test) {
+			// test simple HTTP GET to webserver backend
+			// only accept brotli encoding from client side
+			request.get( 'http://127.0.0.1:3020/json',
+				{
+					headers: {
+						'Accept-Encoding': "br"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/json/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/\b(br)\b/), "Content-Encoding header contains br" );
+					
+					test.ok( !!data, "Got data in response" );
+					test.ok( !!data.length, "Data has non-zero length" );
 					test.done();
 				} 
 			);
@@ -960,6 +1073,7 @@ module.exports = {
 			// test HTTPS GET request to webserver backend
 			request.json( 'https://127.0.0.1:3021/json', false,
 				{
+					rejectUnauthorized: false, // self-signed cert
 					headers: {
 						'X-Test': "Test"
 					}
@@ -987,6 +1101,7 @@ module.exports = {
 		function testHTTPSPost(test) {
 			request.post( 'https://127.0.0.1:3021/json',
 				{
+					rejectUnauthorized: false, // self-signed cert
 					headers: {
 						'X-Test': "Test"
 					},
@@ -1027,6 +1142,7 @@ module.exports = {
 		function testHTTPSMultipartPost(test) {
 			request.post( 'https://127.0.0.1:3021/json',
 				{
+					rejectUnauthorized: false, // self-signed cert
 					headers: {
 						'X-Test': "Test"
 					},
@@ -1074,6 +1190,7 @@ module.exports = {
 			// test JSON HTTPS POST request to webserver backend
 			request.json( 'https://127.0.0.1:3021/json', { foo: 'barpost' },
 				{
+					rejectUnauthorized: false, // self-signed cert
 					headers: {
 						'X-Test': "Test"
 					}
