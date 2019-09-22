@@ -37,7 +37,7 @@ var server = new PixlServer({
 			"http_static_ttl": 3600,
 			"http_static_index": "index.html",
 			"http_server_signature": "WebServerTest 1.0",
-			"http_gzip_text": 1,
+			"http_compress_text": 1,
 			"http_enable_brotli": 1,
 			"http_timeout": 5,
 			"http_response_headers": {

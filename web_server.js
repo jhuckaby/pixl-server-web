@@ -43,6 +43,7 @@ module.exports = Class.create({
 			mode: "text",
 			level: 4
 		},
+		http_compress_text: false,
 		http_enable_brotli: false,
 		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		http_log_requests: false,
@@ -84,6 +85,9 @@ module.exports = Class.create({
 		this.stats = { current: {}, last: {} };
 		this.recent = [];
 		
+		// optionally compress text
+		this.compressText = this.config.get('http_compress_text') || this.config.get('http_gzip_text');
+		
 		// brotli compression support
 		this.hasBrotli = !!zlib.BrotliCompress && this.config.get('http_enable_brotli');
 		this.acceptEncodingMatch = this.hasBrotli ? /\b(gzip|deflate|br)\b/i : /\b(gzip|deflate)\b/i;
@@ -123,7 +127,7 @@ module.exports = Class.create({
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
 			cache: this.config.get('http_static_ttl'),
 			serverInfo: this.config.get('http_server_signature') || this.__name,
-			gzip: this.config.get('http_gzip_text') ? this.regexTextContent : false,
+			gzip: this.compressText ? this.regexTextContent : false,
 			headers: JSON.parse( JSON.stringify(this.config.get('http_response_headers') || {}) ),
 			indexFile: this.config.get('http_static_index')
 		} );
@@ -132,7 +136,7 @@ module.exports = Class.create({
 		this.internalFileServer = new Static.Server( '/', {
 			cache: this.config.get('http_static_ttl'),
 			serverInfo: this.config.get('http_server_signature') || this.__name,
-			gzip: this.config.get('http_gzip_text') ? this.regexTextContent : false,
+			gzip: this.compressText ? this.regexTextContent : false,
 			headers: JSON.parse( JSON.stringify(this.config.get('http_response_headers') || {}) ),
 			indexFile: this.config.get('http_static_index')
 		} );
@@ -1209,7 +1213,7 @@ module.exports = Class.create({
 		var do_compress = headers['X-Compress'] || headers['x-compress'] || false;
 		if (!do_compress) {
 			do_compress = !!(
-				this.config.get('http_gzip_text') && 
+				this.compressText && 
 				headers['Content-Type'] && 
 				headers['Content-Type'].match(this.regexTextContent)
 			);
