@@ -64,6 +64,8 @@ module.exports = Class.create({
 	stats: null,
 	recent: null,
 	
+	badHeaderCharPattern: /([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g,
+	
 	startup: function(callback) {
 		// start http server
 		var self = this;
@@ -1031,6 +1033,26 @@ module.exports = Class.create({
 		
 		response.writeHead = function(status, headers) {
 			if (!headers) headers = {};
+			
+			if (self.config.get('http_clean_headers')) {
+				// prevent bad characters in headers, which can crash node's writeHead() call
+				for (var key in headers) {
+					if (typeof(headers[key]) == 'object') {
+						for (var idx = 0, len = headers[key].length; idx < len; idx++) {
+							headers[key][idx] = headers[key][idx].toString().replace(self.badHeaderCharPattern, '');
+						}
+					}
+					else {
+						headers[key] = headers[key].toString().replace(self.badHeaderCharPattern, '');
+					}
+				}
+			}
+			else if (headers.Location) {
+				// node-static may attempt to redirect to a bad location, crashing node's writeHead() call.
+				// so even if http_clean_headers is disabled, add specific protection for this header
+				headers.Location = headers.Location.toString().replace(self.badHeaderCharPattern, '');
+			}
+			
 			self.manageKeepAliveResponse(args, headers);
 			writeHeadOrig.apply(response, [status, headers]);
 		};
@@ -1330,11 +1352,11 @@ module.exports = Class.create({
 			for (var key in headers) {
 				if (typeof(headers[key]) == 'object') {
 					for (var idx = 0, len = headers[key].length; idx < len; idx++) {
-						headers[key][idx] = headers[key][idx].toString().replace(/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+						headers[key][idx] = headers[key][idx].toString().replace(this.badHeaderCharPattern, '');
 					}
 				}
 				else {
-					headers[key] = headers[key].toString().replace(/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g, '');
+					headers[key] = headers[key].toString().replace(this.badHeaderCharPattern, '');
 				}
 			}
 		}
