@@ -36,6 +36,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [http_max_connections](#http_max_connections)
 	* [http_clean_headers](#http_clean_headers)
 	* [http_log_socket_errors](#http_log_socket_errors)
+	* [http_full_uri_match](#http_full_uri_match)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_cert_file](#https_cert_file)
@@ -360,6 +361,16 @@ Example error log entry:
 [1545121086.42][2018-12-18 00:18:06][myserver01.mycompany.com][29801][WebServer][error][socket][Socket closed unexpectedly: c43593][][][{"id":"c43593","proto":"http","port":80,"time_start":1545120267519,"num_requests":886,"bytes_in":652041,"bytes_out":1307291,"total_elapsed":818901,"url":"http://mycompany.com/example/url","ips":["1.1.1.1","2.2.2.2"]}]
 ```
 
+## http_full_uri_match
+
+When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) will match against the *full* incoming URI, including the query string.  By default this is disabled, meaning URIs are only matched using their path.  Example:
+
+```js
+{
+	"http_full_uri_match": true
+}
+```
+
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, and possibly `https_cert_file` and `https_key_file` for this to work.
@@ -440,6 +451,8 @@ server.WebServer.addURIHandler( /^\/custom\/match\/$/i, 'Custom2', function(args
 Your handler function is passed exactly two arguments.  First, an `args` object containing all kinds of useful information about the request (see [args](#args) below), and a callback function that you must call when the request is complete and you want to send a response.
 
 If you specified a regular expression with paren groups for the URI, the matches array will be included in the `args` object as `args.matches`.  Using this you can extract your matched groups from the URI, for e.g. `/^\/api\/(\w+)/`.
+
+Note that by default, URIs are only matched on their path portion (i.e. sans query string).  To include the query string in URI matches, set the [http_full_uri_match](#http_full_uri_match) configuration property to `true`.
 
 ## Access Control Lists
 

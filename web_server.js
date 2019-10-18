@@ -51,7 +51,8 @@ module.exports = Class.create({
 		http_max_connections: 0,
 		http_max_requests_per_connection: 0,
 		http_clean_headers: false,
-		http_log_socket_errors: true
+		http_log_socket_errors: true,
+		http_full_uri_match: false
 	},
 	
 	conns: null,
@@ -816,7 +817,8 @@ module.exports = Class.create({
 	handleHTTPRequest: function(args) {
 		// determine if we have an API route
 		var self = this;
-		var uri = args.request.url.replace(/\?.*$/, '');
+		var uri = args.request.url;
+		if (!this.config.get('http_full_uri_match')) uri = uri.replace(/\?.*$/, '');
 		var handler = null;
 		
 		args.state = 'processing';
