@@ -17,6 +17,9 @@ var Component = require("pixl-server/component");
 var Perf = require('pixl-perf');
 var ACL = require('pixl-acl');
 
+// backward support for node 6 (sigh)
+var zconstants = zlib.constants || zlib;
+
 module.exports = Class.create({
 	
 	__name: 'WebServer',
@@ -35,7 +38,7 @@ module.exports = Class.create({
 		http_max_upload_size: 32 * 1024 * 1024,
 		http_temp_dir: os.tmpdir(),
 		http_gzip_opts: {
-			level: zlib.constants.Z_DEFAULT_COMPRESSION, 
+			level: zconstants.Z_DEFAULT_COMPRESSION, 
 			memLevel: 8 
 		},
 		http_brotli_opts: {
@@ -99,22 +102,22 @@ module.exports = Class.create({
 		var brotli_opts = this.config.get('http_brotli_opts');
 		if ("mode" in brotli_opts) {
 			switch (brotli_opts.mode) {
-				case 'text': brotli_opts.mode = zlib.constants.BROTLI_MODE_TEXT; break;
-				case 'font': brotli_opts.mode = zlib.constants.BROTLI_MODE_FONT; break;
-				case 'generic': brotli_opts.mode = zlib.constants.BROTLI_MODE_GENERIC; break;
+				case 'text': brotli_opts.mode = zconstants.BROTLI_MODE_TEXT; break;
+				case 'font': brotli_opts.mode = zconstants.BROTLI_MODE_FONT; break;
+				case 'generic': brotli_opts.mode = zconstants.BROTLI_MODE_GENERIC; break;
 			}
 			if (!brotli_opts.params) brotli_opts.params = {};
-			brotli_opts.params[ zlib.constants.BROTLI_PARAM_MODE ] = brotli_opts.mode;
+			brotli_opts.params[ zconstants.BROTLI_PARAM_MODE ] = brotli_opts.mode;
 			delete brotli_opts.mode;
 		}
 		if ("level" in brotli_opts) {
 			if (!brotli_opts.params) brotli_opts.params = {};
-			brotli_opts.params[ zlib.constants.BROTLI_PARAM_QUALITY ] = brotli_opts.level;
+			brotli_opts.params[ zconstants.BROTLI_PARAM_QUALITY ] = brotli_opts.level;
 			delete brotli_opts.level;
 		}
 		if ("hint" in brotli_opts) {
 			if (!brotli_opts.params) brotli_opts.params = {};
-			brotli_opts.params[ zlib.constants.BROTLI_PARAM_SIZE_HINT ] = brotli_opts.hint;
+			brotli_opts.params[ zconstants.BROTLI_PARAM_SIZE_HINT ] = brotli_opts.hint;
 			delete brotli_opts.hint;
 		}
 		
