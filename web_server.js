@@ -31,7 +31,7 @@ module.exports = Class.create({
 		http_private_ip_ranges: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		http_regex_text: "(text|javascript|json|css|html)",
 		http_regex_json: "(javascript|js|json)",
-		http_keep_alives: 1,
+		http_keep_alives: "default",
 		http_timeout: 120,
 		http_static_index: "index.html",
 		http_static_ttl: 0,
@@ -53,6 +53,7 @@ module.exports = Class.create({
 		http_recent_requests: 10,
 		http_max_connections: 0,
 		http_max_requests_per_connection: 0,
+		http_max_concurrent_requests: 0,
 		http_clean_headers: false,
 		http_log_socket_errors: true,
 		http_full_uri_match: false
@@ -128,6 +129,13 @@ module.exports = Class.create({
 		
 		// optional max requests per KA connection
 		this.maxReqsPerConn = this.config.get('http_max_requests_per_connection');
+		
+		// optional max concurrent requests
+		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
+		
+		// setup queue to handle all requests
+		// if both max concurrent req AND max connections are not set, just use a very large number
+		this.queue = async.queue( this.parseHTTPRequest.bind(this), this.maxConcurrentReqs || 8192 );
 		
 		// prep static file server
 		this.fileServer = new Static.Server( this.config.get('http_htdocs_dir'), {
@@ -227,7 +235,7 @@ module.exports = Class.create({
 				);
 			}
 			else {
-				self.parseHTTPRequest( request, response );
+				self.enqueueHTTPRequest( request, response );
 			}
 		};
 		
@@ -354,7 +362,7 @@ module.exports = Class.create({
 			request.headers['ssl'] = 1;
 			request.headers['https'] = 1;
 			
-			self.parseHTTPRequest( request, response );
+			self.enqueueHTTPRequest( request, response );
 		};
 		
 		if (this.config.get('greenlock')) {
@@ -584,12 +592,37 @@ module.exports = Class.create({
 		} );
 	},
 	
-	parseHTTPRequest: function(request, response) {
+	enqueueHTTPRequest: function(request, response) {
+		// enqueue request for handling as soon as concurrency limits allow
+		var args = {
+			request: request,
+			response: response
+		};
+		
+		if (this.server.shut) {
+			// server is shutting down, deny new requests
+			var ips = this.getAllClientIPs(request);
+			var ip = this.getPublicIP(ips);
+			
+			this.logError(503, "Server is shutting down, denying request from: " + ip, 
+				{ ips: ips, uri: request.url, headers: request.headers }
+			);
+			this.sendHTTPResponse( args, "503 Service Unavailable", {}, "503 Service Unavailable (server shutting down)" );
+			return;
+		}
+		
+		this.queue.push(args);
+	},
+	
+	parseHTTPRequest: function(args, callback) {
 		// handle raw http request
 		var self = this;
+		var request = args.request;
+		var response = args.response;
+		args.callback = callback;
+		
 		var ips = this.getAllClientIPs(request);
 		var ip = this.getPublicIP(ips);
-		var args = {};
 		
 		this.logDebug(8, "New HTTP request: " + request.method + " " + request.url + " (" + ips.join(', ') + ")", {
 			socket: request.socket._pixl_data.id,
@@ -620,8 +653,6 @@ module.exports = Class.create({
 		var files = {};
 		
 		// setup args for call to handler
-		args.request = request;
-		args.response = response;
 		args.ip = ip;
 		args.ips = ips;
 		args.query = query;
@@ -714,6 +745,12 @@ module.exports = Class.create({
 					if (total_bytes > bytesMax) {
 						self.logError(413, "Error processing data from: " + ip + ": " + request.url + ": Max data size exceeded");
 						request.socket.end();
+						
+						// note: request ending here without a call to sendHTTPResponse, hence the args.callback is fired
+						if (args.callback) {
+							args.callback();
+							delete args.callback;
+						}
 						return;
 					}
 				} );
@@ -809,7 +846,13 @@ module.exports = Class.create({
 			function(err) {
 				// all filters complete
 				// if a filter handled the response, we're done
-				if (err === "ABORT") return;
+				if (err === "ABORT") {
+					if (args.callback) {
+						args.callback();
+						delete args.callback;
+					}
+					return;
+				}
 				
 				// otherwise, proceed to handling the request proper (method / URI handlers)
 				self.handleHTTPRequest(args);
@@ -889,6 +932,10 @@ module.exports = Class.create({
 				else if (arguments[0] === true) {
 					// true means handler sent the raw response itself
 					self.logDebug(9, "Handler sent custom response");
+					if (args.callback) {
+						args.callback();
+						delete args.callback;
+					}
 				}
 				else if (arguments[0] === false) {
 					// false means handler did nothing, fall back to static
@@ -1142,6 +1189,10 @@ module.exports = Class.create({
 			}
 			else {
 				this.logDebug(9, "Socket closed unexpectedly: " + socket_data.id, socket_data);
+			}
+			if (args.callback) {
+				args.callback();
+				delete args.callback;
 			}
 			return;
 		}
@@ -1483,6 +1534,12 @@ module.exports = Class.create({
 				}
 			break;
 		} // switch
+		
+		// fire final request callback (queue)
+		if (args.callback) {
+			args.callback();
+			delete args.callback;
+		}
 	},
 	
 	tick: function() {
@@ -1554,7 +1611,11 @@ module.exports = Class.create({
 			stats: stats,
 			listeners: listener_info,
 			sockets: socket_info,
-			recent: this.recent
+			recent: this.recent,
+			queue: {
+				pending: this.queue.length(),
+				running: this.queue.running()
+			}
 		};
 	},
 	
@@ -1649,6 +1710,8 @@ module.exports = Class.create({
 				this.https.close( function() { self.logDebug(3, "HTTPS server has shut down."); } );
 			}
 			// delete this.http;
+			
+			this.queue.kill();
 		}
 		
 		callback();

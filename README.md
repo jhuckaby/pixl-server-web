@@ -9,7 +9,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 - [Configuration](#configuration)
 	* [http_port](#http_port)
 	* [http_bind_address](#http_bind_address)
-	* [http_docs_dir](#http_docs_dir)
+	* [http_htdocs_dir](#http_htdocs_dir)
 	* [http_max_upload_size](#http_max_upload_size)
 	* [http_temp_dir](#http_temp_dir)
 	* [http_static_ttl](#http_static_ttl)
@@ -34,6 +34,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [http_regex_log](#http_regex_log)
 	* [http_recent_requests](#http_recent_requests)
 	* [http_max_connections](#http_max_connections)
+	* [http_max_concurrent_requests](#http_max_concurrent_requests)
 	* [http_clean_headers](#http_clean_headers)
 	* [http_log_socket_errors](#http_log_socket_errors)
 	* [http_full_uri_match](#http_full_uri_match)
@@ -75,6 +76,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [The Listeners Object](#the-listeners-object)
 	* [The Sockets Object](#the-sockets-object)
 	* [The Recent Object](#the-recent-object)
+	* [The Queue Object](#the-queue-object)
 	* [Including Custom Stats](#including-custom-stats)
 	* [Stats URI Handler](#stats-uri-handler)
 - [Misc](#misc)
@@ -162,7 +164,7 @@ Optionally specify an exact local IP address to bind the listener to.  By defaul
 
 This example would cause the server to *only* listen on localhost, and not any external network interface.
 
-## http_docs_dir
+## http_htdocs_dir
 
 This is the path to the directory to serve static files out of, e.g. `/var/www/html`.
 
@@ -340,6 +342,21 @@ This integer specifies the number of recent requests to provide in the `getStats
 ## http_max_connections
 
 This integer specifies the maximum number of concurrent connections to allow.  It defaults to `0` (no limit).  If specified and the amount is exceeded, new incoming connections will be denied (socket force-closed without reading any data), and an error logged for each attempt (with error code `maxconns`).
+
+## http_max_concurrent_requests
+
+This integer specifies the maximum number of concurrent requests to allow.  It defaults to `0` (no limit).  If more than the maximum allowed requests arrive in parallel, additional requests are queued, and processed as soon as slots become available.  Requests are always processed in the order they were received.
+
+The idea here is that you can set [http_max_connections](#http_max_connections) to a much higher value, for things like load balancers pre-opening connections or clients using a pool of keep-alive connections, but then only allow your application code to process a smaller amount of requests in parallel.  For example:
+
+```js
+{
+	"http_max_connections": 2048,
+	"http_max_concurrent_requests": 64
+}
+```
+
+This would allow up to 2,048 concurrent connections (sockets) to be open at any given time, but only allow 64 active requests to run in parallel.  If more than 64 requests came in at once, the remainder would be queued up, and processed as soon as other requests completed.
 
 ## http_clean_headers
 
@@ -954,7 +971,11 @@ The result is an object in this format:
 				}
 			}
 		}
-	]
+	],
+	"queue": {
+		"pending": 0,
+		"running": 1
+	}
 }
 ```
 
@@ -962,13 +983,13 @@ The result is an object in this format:
 
 The `server` object contains information about the server as a whole.  The properties include:
 
-| Property | Description |
-|----------|-------------|
-| `hostname` | The hostname of the server. |
-| `ip` | The local IP address of the server. |
-| `name` | The name of your pixl-server instance. |
-| `version` | The version of your pixl-server instance. |
-| `uptime` | The number of seconds since the server was started. |
+| Property | Type | Description |
+|----------|------|-------------|
+| `hostname` | String | The hostname of the server. |
+| `ip` | String | The local IP address of the server. |
+| `name` | String | The name of your pixl-server instance. |
+| `version` | String | The version of your pixl-server instance. |
+| `uptime` | Integer | The number of seconds since the server was started. |
 
 ## The Stats Object
 
@@ -994,50 +1015,59 @@ If you add any of your own app's performance metrics via `args.perf`, they will 
 
 The `listeners` object contains information about the socket listeners currently open and receiving connections.  There may be one or two of these, depending on if HTTPS/SSL is enabled.  The `listeners` object will contain `http` and/or `https` sub-objects, each with the following properties:
 
-| Property | Description |
-|----------|-------------|
-| `address` | The bound local IP address, or `::` for wildcard IPv6 or `0.0.0.0` for wildcard IPv4 (i.e. all network interfaces). |
-| `port` | The local port number we are listening on. |
-| `family` | The IP family, will be one of `IPv6` or `IPv4`. |
+| Property | Type | Description |
+|----------|------|-------------|
+| `address` | String | The bound local IP address, or `::` for wildcard IPv6 or `0.0.0.0` for wildcard IPv4 (i.e. all network interfaces). |
+| `port` | Integer | The local port number we are listening on. |
+| `family` | String | The IP family, will be one of `IPv6` or `IPv4`. |
 
 ## The Sockets Object
 
 The `sockets` object contains information about all currently open sockets.  Note that this is an object, not an array.  The keys are internal identifiers, and the values are sub-objects containing the following properties:
 
-| Property | Description |
-|----------|-------------|
-| `state` | The current state of the socket, will be one of: `idle`, `reading`, `processing`, or `writing`. |
-| `ip` | The client IP address connected to the socket (may be a load balancer or proxy). |
-| `proto` | The protocol of the socket, will be `http` or `https`. |
-| `port` | The listening port of the socket, e.g. `80` or `443`. |
-| `uptime_ms` | The total time the socket has been connected, in milliseconds. |
-| `num_requests` | The total number of requests served by the socket (i.e. keep-alives). |
-| `bytes_in` | The total number of bytes received by the socket. |
-| `bytes_out` | The total number of bytes sent by the socket. |
-| `elapsed_ms` | If an HTTP request is in progress, this will contain the elapsed request time, in milliseconds. |
-| `ips` | If an HTTP request is in progress, this will contain the array of client IPs, including proxy IPs. |
-| `method` | If an HTTP request is in progress, this will contain the request method (e.g. `GET`, `POST`, etc.) |
-| `uri` | If an HTTP request is in progress, this will contain the full request URI. |
-| `host` | If an HTTP request is in progress, this will contain the hostname from the URL. |
+| Property | Type | Description |
+|----------|------|-------------|
+| `state` | String | The current state of the socket, will be one of: `idle`, `reading`, `processing`, or `writing`. |
+| `ip` | String | The client IP address connected to the socket (may be a load balancer or proxy). |
+| `proto` | String | The protocol of the socket, will be `http` or `https`. |
+| `port` | Integer | The listening port of the socket, e.g. `80` or `443`. |
+| `uptime_ms` | Number | The total time the socket has been connected, in milliseconds. |
+| `num_requests` | Integer | The total number of requests served by the socket (i.e. keep-alives). |
+| `bytes_in` | Integer | The total number of bytes received by the socket. |
+| `bytes_out` | Integer | The total number of bytes sent by the socket. |
+| `elapsed_ms` | Number | If an HTTP request is in progress, this will contain the elapsed request time, in milliseconds. |
+| `ips` | Array | If an HTTP request is in progress, this will contain the array of client IPs, including proxy IPs. |
+| `method` | String | If an HTTP request is in progress, this will contain the request method (e.g. `GET`, `POST`, etc.) |
+| `uri` | String | If an HTTP request is in progress, this will contain the full request URI. |
+| `host` | String | If an HTTP request is in progress, this will contain the hostname from the URL. |
 
 ## The Recent Object
 
 The `recent` array is a sorted list of the last 10 completed requests (most recent first).  Each element of the array is an object containing the following properties:
 
-| Property | Description |
-|----------|-------------|
-| `when` | The date/time of the *completion* of the request, as high-res Epoch seconds. |
-| `proto` | The protocol of the original client request, will be `http` or `https`. |
-| `port` | The listening port of the socket, e.g. `80` or `443`. |
-| `code` | The HTTP response code, e.g. `200` or `404`. |
-| `status` | The HTTP response status message, e.g. `OK` or `File Not Found`. |
-| `uri` | The full request URI including query string. |
-| `host` | The hostname from the request URL. |
-| `ips` | The array of client IPs, including proxy IPs. |
-| `ua` | The client's `User-Agent` string. |
-| `perf` | A [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance metrics object containing stats for the request. |
+| Property | Type | Description |
+|----------|------|-------------|
+| `when` | Integer | The date/time of the *completion* of the request, as high-res Epoch seconds. |
+| `proto` | String | The protocol of the original client request, will be `http` or `https`. |
+| `port` | Integer | The listening port of the socket, e.g. `80` or `443`. |
+| `code` | Integer | The HTTP response code, e.g. `200` or `404`. |
+| `status` | String | The HTTP response status message, e.g. `OK` or `File Not Found`. |
+| `uri` | String | The full request URI including query string. |
+| `host` | String | The hostname from the request URL. |
+| `ips` | Array | The array of client IPs, including proxy IPs. |
+| `ua` | String | The client's `User-Agent` string. |
+| `perf` | Object | A [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance metrics object containing stats for the request. |
 
 If you would like more than 10 requests, set the [http_recent_requests](#http_recent_requests) configuration property to the number you want.
+
+## The Queue Object
+
+The `queue` object contains information about the request queue.  This includes the number of current active requests running in parallel, and the number of queued requests waiting to be processed.  The latter is only used if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero.  Here are the queue object properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `pending` | Integer | The number of requests queued, waiting for processing.  Only used if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero. |
+| `running` | Integer | The number of active requests currently being processed in parallel. |
 
 ## Including Custom Stats
 

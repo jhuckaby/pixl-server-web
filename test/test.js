@@ -6,6 +6,7 @@ var os = require('os');
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
+var async = require('async');
 
 var Class = require("pixl-class");
 var PixlServer = require('pixl-server');
@@ -896,32 +897,53 @@ module.exports = {
 			);
 		},
 		
+		function waitForAllSockets(test) {
+			// wait for all sockets to close for next test (requires clean slate)
+			var self = this;
+			
+			for (var id in this.web_server.conns) {
+				this.web_server.conns[id].end();
+			}
+			
+			async.whilst(
+				function() { return Object.keys(self.web_server.conns).length > 0; },
+				function(callback) {
+					setTimeout( function() { callback(); }, 100 );
+				},
+				function() {
+					test.done();
+				}
+			); // async.whilst
+		},
+		
 		// http_max_connections
 		function testMaxConnections(test) {
 			// test going over max concurrent connections (10)
 			// this test is very perf and timing sensitive, may fail on overloaded or underpowered servers
-			// we need ALL sockets to be closed for this, hence the initial delay
+			// we need ALL sockets to be closed for this
+			var self = this;
+			
+			test.ok( Object.keys(self.web_server.conns).length == 0, "Oops, there's one or more sockets left" );
+			
+			// open 10 concurrent
+			for (var idx = 0; idx < 10; idx++) {
+				request.get( 'http://127.0.0.1:3020/sleep?ms=500',
+					function(err, resp, data, perf) {
+						// ignore
+					} 
+				);
+			} // loop
+			
+			// sleep for 250ms, then test
 			setTimeout( function() {
-				// open 10 concurrent
-				for (var idx = 0; idx < 10; idx++) {
-					request.get( 'http://127.0.0.1:3020/sleep?ms=500',
-						function(err, resp, data, perf) {
-							// ignore
-						} 
-					);
-				} // loop
-				
-				// sleep for 250ms, then test
-				setTimeout( function() {
-					// now, all 10 requests should be in progress, so 11th should fail
-					request.get( 'http://127.0.0.1:3020/json',
-						function(err, resp, data, perf) {
-							test.ok( !!err, "Expected error from PixlRequest" );
-							setTimeout( function() { test.done(); }, 500 ); // wait for all 10 to complete
-						} 
-					);
-				}, 250 );
-			}, 500 );
+				// now, all 10 requests should be in progress, so 11th should fail
+				request.get( 'http://127.0.0.1:3020/json',
+					function(err, resp, data, perf) {
+						test.ok( !!err, "Expected error from PixlRequest" );
+						setTimeout( function() { test.done(); }, 500 ); // wait for all 10 to complete
+					} 
+				);
+			}, 250 );
 		},
 		
 		// post size too large
@@ -1319,6 +1341,65 @@ module.exports = {
 					); // request.get #2
 				}
 			); // request.get #1
+		},
+		
+		function waitForAllSockets2(test) {
+			// wait for all sockets to close for next test (requires clean slate)
+			var self = this;
+			
+			for (var id in this.web_server.conns) {
+				this.web_server.conns[id].end();
+			}
+			
+			async.whilst(
+				function() { return Object.keys(self.web_server.conns).length > 0; },
+				function(callback) {
+					setTimeout( function() { callback(); }, 100 );
+				},
+				function() {
+					test.done();
+				}
+			); // async.whilst
+		},
+		
+		// http_max_concurrent_requests
+		function testMaxConcurrentRequests(test) {
+			// test going over max concurrent requests, remainder should be queued
+			var self = this;
+			test.expect( 1 + (3 * 10) + 2 + 2 );
+			this.web_server.queue.concurrency = 5;
+			
+			// open 10 concurrent, 5 should queue
+			// test.debug( "Stats:", self.web_server.getStats() );
+			test.ok( Object.keys(self.web_server.conns).length == 0, "Oops, there's one or more sockets left" );
+			
+			async.times( 10,
+				function(idx, callback) {
+					request.get( 'http://127.0.0.1:3020/sleep?ms=500',
+						function(err, resp, data, perf) {
+							test.ok( !err, "No error from PixlRequest: " + err );
+							test.ok( !!resp, "Got resp from PixlRequest" );
+							test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+							callback();
+						}
+					);
+				},
+				function() {
+					// all 10 requests completed, queue should be empty now
+					var stats = self.web_server.getStats();
+					test.ok( stats.queue.pending == 0, "Expected 0 pending requests, got: " + stats.queue.pending );
+					test.ok( stats.queue.running == 0, "Expected 0 running requests, got: " + stats.queue.running );
+					test.done();
+				}
+			); // async.times
+			
+			// sleep for 250ms, then grab stats
+			setTimeout( function() {
+				// now, 5 requests should be in progress, and 5 queued
+				var stats = self.web_server.getStats();
+				test.ok( stats.queue.pending == 5, "Expected 5 pending requests, got: " + stats.queue.pending );
+				test.ok( stats.queue.running == 5, "Expected 5 running requests, got: " + stats.queue.running );
+			}, 250 );
 		}
 		
 	], // tests
