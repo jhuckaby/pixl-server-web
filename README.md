@@ -1062,7 +1062,7 @@ If you would like more than 10 requests, set the [http_recent_requests](#http_re
 
 ## The Queue Object
 
-The `queue` object contains information about the request queue.  This includes the number of current active requests running in parallel, and the number of queued requests waiting to be processed.  The latter is only used if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero.  Here are the queue object properties:
+The `queue` object contains information about the request queue.  This includes the number of current active requests running in parallel, and the number of queued requests waiting to be processed.  The pending count is only relevant if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero.  Here are the queue object properties:
 
 | Property | Type | Description |
 |----------|------|-------------|
