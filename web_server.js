@@ -1554,6 +1554,7 @@ module.exports = Class.create({
 		var socket_info = {};
 		var listener_info = {};
 		var now = (new Date()).getTime();
+		var num_sockets = 0;
 		
 		if (this.http) listener_info.http = this.http.address();
 		if (this.https) listener_info.https = this.https.address();
@@ -1582,9 +1583,11 @@ module.exports = Class.create({
 				info.elapsed_ms = args.perf.calcElapsed( args.perf.perf.total.start );
 			}
 			socket_info[key] = info;
+			num_sockets++;
 		}
 		
 		var stats = this.stats.last;
+		stats.num_sockets = num_sockets;
 		if (!stats.num_requests) stats.num_requests = 0;
 		if (!stats.bytes_in) stats.bytes_in = 0;
 		if (!stats.bytes_out) stats.bytes_out = 0;

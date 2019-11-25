@@ -902,9 +902,10 @@ The result is an object in this format:
 			"total": 7.679,
 			"count": 11
 		},
+		"bytes_in": 0,
 		"bytes_out": 1175,
 		"num_requests": 11,
-		"bytes_in": 0
+		"num_sockets": 2
 	},
 	"listeners": {
 		"http": {
@@ -1004,6 +1005,7 @@ The `stats` object contains real-time performance metrics, representing one whol
 | `bytes_in` | Simple Counter | Total bytes received in the last full second. |
 | `bytes_out` | Simple Counter | Total sent in the last full second. |
 | `num_requests` | Simple Counter | Total requests served in the last full second. |
+| `num_sockets` | Simple Counter | Total number of open sockets at the current time. |
 
 The object consists of both simple counters, and min/max/avg objects.  The latter is designed to represent specific performance metrics, and we include the minimum, maximum, and a count and total (for computing the average).  Simply divide the total by the count and you'll have the average over the 1.0 seconds of sample time.
 
