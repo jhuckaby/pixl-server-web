@@ -1129,16 +1129,16 @@ See the [https_header_detect](#https_header_detect) configuration property for a
 
 ## Self-Referencing URLs
 
-To build a URL that points at the current server, call `server.getSelfURL()` and pass in the `args.request` object.  This will produce a URL using the same protocol as the request (HTTP or HTTPS), the same hostname used on the request, and the port number if applicable.  By default, the URL will point to the root path (`/`).  Example:
+To build a URL that points at the current server, call `getSelfURL()` and pass in the `args.request` object.  This will produce a URL using the same protocol as the request (HTTP or HTTPS), the same hostname used on the request, and the port number if applicable.  By default, the URL will point to the root path (`/`).  Example:
 
 ```js
-var url = server.getSelfURL(args.request);
+var url = server.WebServer.getSelfURL(args.request);
 ```
 
 You can optionally pass in a URI path as the second argument.  For example, to build a URL to the exact request URI that came in, pass in `args.request.url` as the second argument:
 
 ```js
-var url = server.getSelfURL(args.request, args.request.url);
+var url = server.WebServer.getSelfURL(args.request, args.request.url);
 ```
 
 ## Custom Method Handlers
