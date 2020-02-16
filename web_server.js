@@ -1116,6 +1116,23 @@ module.exports = Class.create({
 			self.finishRequest(args);
 		} );
 		
+		response.on('close', function() {
+			if (args.callback) { 
+				// socket closed during active response
+				if (self.config.get('http_log_socket_errors')) {
+					self.logError('socket', "Socket connection terminated unexpectedly during response", {
+						ips: args.ips,
+						useragent: request.headers['user-agent'] || '',
+						referrer: request.headers['referer'] || '',
+						cookie: request.headers['cookie'] || '',
+						url: self.getSelfURL(request, request.url) || request.url
+					});
+				}
+				args.callback(); // queue
+				delete args.callback;
+			}
+		});
+		
 		var handleFileServerResponse = function(err, result) {
 			var headers = null;
 			if (err) {
@@ -1137,7 +1154,7 @@ module.exports = Class.create({
 			}
 			else {
 				self.logDebug(8, "Static HTTP response sent: HTTP " + result.status, result.headers);
-				args.perf.count('bytes_out', result.headers['Content-Length'] || 0);
+				args.perf.count('bytes_out', parseInt( result.headers['Content-Length'] || 0 ));
 				
 				args.http_code = result.status;
 				args.http_status = "OK";
@@ -1266,6 +1283,23 @@ module.exports = Class.create({
 			args.perf.end('write');
 			self.finishRequest(args);
 		} );
+		
+		response.on('close', function() {
+			if (args.callback) { 
+				// socket closed during active response
+				if (self.config.get('http_log_socket_errors')) {
+					self.logError('socket', "Socket connection terminated unexpectedly during response", {
+						ips: args.ips,
+						useragent: request.headers['user-agent'] || '',
+						referrer: request.headers['referer'] || '',
+						cookie: request.headers['cookie'] || '',
+						url: self.getSelfURL(request, request.url) || request.url
+					});
+				}
+				args.callback(); // queue
+				delete args.callback;
+			}
+		});
 		
 		// handle stream errors (abort response)
 		if (is_stream) {
