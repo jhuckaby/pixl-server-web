@@ -1,6 +1,6 @@
 // Simple HTTP / HTTPS Web Server
 // A component for the pixl-server daemon framework.
-// Copyright (c) 2015 - 2019 Joseph Huckaby
+// Copyright (c) 2015 - 2020 Joseph Huckaby
 // Released under the MIT License
 
 var fs = require('fs');
@@ -1086,6 +1086,13 @@ module.exports = Class.create({
 		response.writeHead = function(status, headers) {
 			if (!headers) headers = {};
 			
+			if (args.internalTTL) {
+				// override static server TTL with custom value accompanying internal redirect
+				delete headers['cache-control'];
+				if (typeof(args.internalTTL) == 'number') headers['Cache-Control'] = "public, max-age=" + args.internalTTL;
+				else headers['Cache-Control'] = args.internalTTL;
+			}
+			
 			if (self.config.get('http_clean_headers')) {
 				// prevent bad characters in headers, which can crash node's writeHead() call
 				for (var key in headers) {
@@ -1351,7 +1358,7 @@ module.exports = Class.create({
 				zlib_func = 'brotliCompress';
 				zlib_opts = self.config.get('http_brotli_opts') || {};
 				headers['Content-Encoding'] = 'br';
-				if (is_stream) compressor = zlib.createBrotli( zlib_opts );
+				if (is_stream) compressor = zlib.createBrotliCompress( zlib_opts );
 			}
 			else if (accept_encoding.match(/\b(gzip)\b/)) {
 				// prefer gzip second
