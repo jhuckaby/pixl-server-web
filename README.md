@@ -358,6 +358,28 @@ The idea here is that you can set [http_max_connections](#http_max_connections) 
 
 This would allow up to 2,048 concurrent connections (sockets) to be open at any given time, but only allow 64 active requests to run in parallel.  If more than 64 requests came in at once, the remainder would be queued up, and processed as soon as other requests completed.
 
+## http_max_queue_length
+
+The `http_max_queue_length` property is designed to work in conjunction with [http_max_concurrent_requests](#http_max_concurrent_requests).  It specifies the maximum number of requests to allow in the queue, before rejecting new requests.  It defaults to `0` (infinite).  If the number of enqueued requests reaches this limit, then new incoming requests are immediately aborted with a `HTTP 429 Too Many Requests` response.  An error is also logged with a `429` code in this case.  Example error log entry:
+
+```
+[1587614950.774][2020-04-22 21:09:10][joe16.local][93307][WebServer][error][429][Queue is maxed out (100 pending reqs), denying request from: 127.0.0.1][{"ips":["127.0.0.1"],"uri":"/sleep?ms=500","headers":{"accept-encoding":"gzip, deflate, br","user-agent":"Overflow Test Agent 1.0","host":"localhost:3012","connection":"keep-alive"},"pending":100,"active":1024,"sockets":1175}]
+```
+
+The error log data column includes some additional information including the total requests pending, the number of concurrent active requests, and the number of open sockets.
+
+## http_queue_skip_uri_match
+
+The `http_queue_skip_uri_match` property is designed to work in conjunction with [http_max_concurrent_requests](#http_max_concurrent_requests).  It allows you to specify a URI pattern match that will always skip over the queue and be processed immediately, regardless of limits.  Using this feature you can allow things like health checks (possibly from a load balancer) to always be serviced, even during an overload situation.  Example use:
+
+```js
+{
+	"http_queue_skip_uri_match": "^/server-status"
+}
+```
+
+This property defaults to `false` (disabled).
+
 ## http_clean_headers
 
 This boolean enables HTTP response header cleansing.  When set to `true` it will strip all illegal characters from your response header values, which otherwise could cause Node.js to crash.  It defaults to `false`.  The regular expression it uses is `/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g`.

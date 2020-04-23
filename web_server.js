@@ -54,6 +54,8 @@ module.exports = Class.create({
 		http_max_connections: 0,
 		http_max_requests_per_connection: 0,
 		http_max_concurrent_requests: 0,
+		http_max_queue_length: 0,
+		http_queue_skip_uri_match: false,
 		http_clean_headers: false,
 		http_log_socket_errors: true,
 		http_full_uri_match: false
@@ -130,10 +132,13 @@ module.exports = Class.create({
 		// optional max requests per KA connection
 		this.maxReqsPerConn = this.config.get('http_max_requests_per_connection');
 		
-		// optional max concurrent requests
-		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
-		
 		// setup queue to handle all requests
+		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
+		this.maxQueueLength = this.config.get('http_max_queue_length');
+		
+		this.queueSkipMatch = this.config.get('http_queue_skip_uri_match') ? 
+			new RegExp( this.config.get('http_queue_skip_uri_match') ) : false;
+		
 		// if both max concurrent req AND max connections are not set, just use a very large number
 		this.queue = async.queue( this.parseHTTPRequest.bind(this), this.maxConcurrentReqs || 8192 );
 		
@@ -601,13 +606,43 @@ module.exports = Class.create({
 		
 		if (this.server.shut) {
 			// server is shutting down, deny new requests
-			var ips = this.getAllClientIPs(request);
-			var ip = this.getPublicIP(ips);
+			var ips = args.ips = this.getAllClientIPs(request);
+			var ip = args.ip = this.getPublicIP(ips);
 			
 			this.logError(503, "Server is shutting down, denying request from: " + ip, 
 				{ ips: ips, uri: request.url, headers: request.headers }
 			);
+			
+			args.perf = new Perf();
+			args.perf.begin();
 			this.sendHTTPResponse( args, "503 Service Unavailable", {}, "503 Service Unavailable (server shutting down)" );
+			return;
+		}
+		
+		// allow special URIs to skip the line
+		if (this.queueSkipMatch && request.url.match(this.queueSkipMatch)) {
+			this.logDebug(8, "Bumping request to front of queue: " + request.url);
+			this.queue.unshift(args);
+			return;
+		}
+		
+		if (this.maxQueueLength && (this.queue.length() >= this.maxQueueLength)) {
+			// queue is maxed out, reject request immediately
+			var ips = args.ips = this.getAllClientIPs(request);
+			var ip = args.ip = this.getPublicIP(ips);
+			
+			this.logError(429, "Queue is maxed out (" + this.queue.length() + " pending reqs), denying request from: " + ip, { 
+				ips: ips, 
+				uri: request.url, 
+				headers: request.headers,
+				pending: this.queue.length(),
+				active: this.queue.running(),
+				sockets: this.numConns
+			});
+			
+			args.perf = new Perf();
+			args.perf.begin();
+			this.sendHTTPResponse( args, "429 Too Many Requests", {}, "429 Too Many Requests (queue maxed out)" );
 			return;
 		}
 		
