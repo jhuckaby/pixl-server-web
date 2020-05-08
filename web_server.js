@@ -298,6 +298,7 @@ module.exports = Class.create({
 			
 			socket.on('error', function(err) {
 				// client aborted connection?
+				var args = socket._pixl_data.current || { request: {} };
 				var msg = err.message;
 				if (err.errno && ErrNo.code[err.errno]) {
 					msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
@@ -305,10 +306,18 @@ module.exports = Class.create({
 				if (self.config.get('http_log_socket_errors')) {
 					self.logError(err.code || 'socket', "Socket error: " + id + ": " + msg, {
 						ip: ip,
+						ips: args.ips,
+						state: args.state,
+						method: args.request.method,
+						uri: args.request.url,
 						pending: self.queue.length(),
 						active: self.queue.running(),
 						sockets: self.numConns
 					});
+				}
+				if (args.callback) {
+					args.callback();
+					delete args.callback;
 				}
 			} );
 			
@@ -329,19 +338,33 @@ module.exports = Class.create({
 		
 		this.http.on('clientError', function(err, socket) {
 			// https://nodejs.org/api/http.html#http_event_clienterror
+			if (!socket._pixl_data) socket._pixl_data = {};
+			var args = socket._pixl_data.current || { request: {} };
 			var msg = err.message;
+			
 			if (err.errno && ErrNo.code[err.errno]) {
 				msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
 			}
+			
 			if (self.config.get('http_log_socket_errors')) {
 				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, {
 					ip: socket.remoteAddress,
+					ips: args.ips,
+					state: args.state,
+					method: args.request.method,
+					uri: args.request.url,
 					pending: self.queue.length(),
 					active: self.queue.running(),
 					sockets: self.numConns
 				});
 			}
+			
 			socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+			
+			if (args.callback) {
+				args.callback();
+				delete args.callback;
+			}
 		});
 		
 		this.http.once('error', function(err) {
@@ -457,6 +480,7 @@ module.exports = Class.create({
 			
 			socket.on('error', function(err) {
 				// client aborted connection?
+				var args = socket._pixl_data.current || { request: {} };
 				var msg = err.message;
 				if (err.errno && ErrNo.code[err.errno]) {
 					msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
@@ -464,10 +488,18 @@ module.exports = Class.create({
 				if (self.config.get('http_log_socket_errors')) {
 					self.logError(err.code || 'socket', "Socket error: " + id + ": " + msg, {
 						ip: ip,
+						ips: args.ips,
+						state: args.state,
+						method: args.request.method,
+						uri: args.request.url,
 						pending: self.queue.length(),
 						active: self.queue.running(),
 						sockets: self.numConns
 					});
+				}
+				if (args.callback) {
+					args.callback();
+					delete args.callback;
 				}
 			} );
 			
@@ -488,19 +520,33 @@ module.exports = Class.create({
 		
 		this.https.on('clientError', function(err, socket) {
 			// https://nodejs.org/api/http.html#http_event_clienterror
+			if (!socket._pixl_data) socket._pixl_data = {};
+			var args = socket._pixl_data.current || { request: {} };
 			var msg = err.message;
+			
 			if (err.errno && ErrNo.code[err.errno]) {
 				msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
 			}
+			
 			if (self.config.get('http_log_socket_errors')) {
 				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, {
 					ip: socket.remoteAddress,
+					ips: args.ips,
+					state: args.state,
+					method: args.request.method,
+					uri: args.request.url,
 					pending: self.queue.length(),
 					active: self.queue.running(),
 					sockets: self.numConns
 				});
 			}
+			
 			socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+			
+			if (args.callback) {
+				args.callback();
+				delete args.callback;
+			}
 		});
 		
 		this.https.once('error', function(err) {
@@ -793,7 +839,9 @@ module.exports = Class.create({
 				form.uploadDir = self.config.get('http_temp_dir');
 				
 				form.on('progress', function(bytesReceived, bytesExpected) {
-					self.logDebug(10, "Upload progress: " + bytesReceived + " of " + bytesExpected + " bytes");
+					self.logDebug(9, "Upload progress: " + bytesReceived + " of " + bytesExpected + " bytes", {
+						socket: request.socket._pixl_data.id
+					});
 					args.perf.count('bytes_in', bytesReceived);
 				} );
 				
@@ -824,7 +872,9 @@ module.exports = Class.create({
 					total_bytes += chunk.length;
 					args.perf.count('bytes_in', chunk.length);
 					
-					self.logDebug(10, "Upload progress: " + total_bytes + " of " + bytesExpected + " bytes");
+					self.logDebug(9, "Upload progress: " + total_bytes + " of " + bytesExpected + " bytes", {
+						socket: request.socket._pixl_data.id
+					});
 					if (total_bytes > bytesMax) {
 						self.logError(413, "Error processing data from: " + ip + ": " + request.url + ": Max data size exceeded");
 						request.socket.end();
