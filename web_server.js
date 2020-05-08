@@ -302,7 +302,14 @@ module.exports = Class.create({
 				if (err.errno && ErrNo.code[err.errno]) {
 					msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
 				}
-				self.logError(err.code || 1, "Socket error: " + id + ": " + msg, { ip: ip });
+				if (self.config.get('http_log_socket_errors')) {
+					self.logError(err.code || 'socket', "Socket error: " + id + ": " + msg, {
+						ip: ip,
+						pending: self.queue.length(),
+						active: self.queue.running(),
+						sockets: self.numConns
+					});
+				}
 			} );
 			
 			socket.on('close', function() {
@@ -319,6 +326,23 @@ module.exports = Class.create({
 				self.numConns--;
 			} );
 		} );
+		
+		this.http.on('clientError', function(err, socket) {
+			// https://nodejs.org/api/http.html#http_event_clienterror
+			var msg = err.message;
+			if (err.errno && ErrNo.code[err.errno]) {
+				msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
+			}
+			if (self.config.get('http_log_socket_errors')) {
+				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, {
+					ip: socket.remoteAddress,
+					pending: self.queue.length(),
+					active: self.queue.running(),
+					sockets: self.numConns
+				});
+			}
+			socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+		});
 		
 		this.http.once('error', function(err) {
 			// fatal startup error on HTTP server, probably EADDRINUSE
@@ -437,7 +461,14 @@ module.exports = Class.create({
 				if (err.errno && ErrNo.code[err.errno]) {
 					msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
 				}
-				self.logError(err.code || 1, "Socket error: " + id + ": " + msg, { ip: ip });
+				if (self.config.get('http_log_socket_errors')) {
+					self.logError(err.code || 'socket', "Socket error: " + id + ": " + msg, {
+						ip: ip,
+						pending: self.queue.length(),
+						active: self.queue.running(),
+						sockets: self.numConns
+					});
+				}
 			} );
 			
 			socket.on('close', function() {
@@ -454,6 +485,23 @@ module.exports = Class.create({
 				self.numConns--;
 			} );
 		} );
+		
+		this.https.on('clientError', function(err, socket) {
+			// https://nodejs.org/api/http.html#http_event_clienterror
+			var msg = err.message;
+			if (err.errno && ErrNo.code[err.errno]) {
+				msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
+			}
+			if (self.config.get('http_log_socket_errors')) {
+				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, {
+					ip: socket.remoteAddress,
+					pending: self.queue.length(),
+					active: self.queue.running(),
+					sockets: self.numConns
+				});
+			}
+			socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+		});
 		
 		this.https.once('error', function(err) {
 			// fatal startup error on HTTPS server, probably EADDRINUSE
