@@ -346,19 +346,24 @@ module.exports = Class.create({
 				msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
 			}
 			
+			var err_args = {
+				ip: socket.remoteAddress,
+				ips: args.ips,
+				state: args.state,
+				method: args.request.method,
+				uri: args.request.url,
+				pending: self.queue.length(),
+				active: self.queue.running(),
+				sockets: self.numConns
+			};
 			if (self.config.get('http_log_socket_errors')) {
-				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, {
-					ip: socket.remoteAddress,
-					ips: args.ips,
-					state: args.state,
-					method: args.request.method,
-					uri: args.request.url,
-					pending: self.queue.length(),
-					active: self.queue.running(),
-					sockets: self.numConns
-				});
+				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, err_args);
+			}
+			else {
+				self.logDebug(5, "Client error: " + socket._pixl_data.id + ": " + msg, err_args);
 			}
 			
+			socket._pixl_data.aborted = true;
 			socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 			
 			if (args.callback) {
@@ -528,19 +533,24 @@ module.exports = Class.create({
 				msg = ucfirst(ErrNo.code[err.errno].description) + " (" + err.message + ")";
 			}
 			
+			var err_args = {
+				ip: socket.remoteAddress,
+				ips: args.ips,
+				state: args.state,
+				method: args.request.method,
+				uri: args.request.url,
+				pending: self.queue.length(),
+				active: self.queue.running(),
+				sockets: self.numConns
+			};
 			if (self.config.get('http_log_socket_errors')) {
-				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, {
-					ip: socket.remoteAddress,
-					ips: args.ips,
-					state: args.state,
-					method: args.request.method,
-					uri: args.request.url,
-					pending: self.queue.length(),
-					active: self.queue.running(),
-					sockets: self.numConns
-				});
+				self.logError(err.code || 'socket', "Client error: " + socket._pixl_data.id + ": " + msg, err_args);
+			}
+			else {
+				self.logDebug(5, "Client error: " + socket._pixl_data.id + ": " + msg, err_args);
 			}
 			
+			socket._pixl_data.aborted = true;
 			socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 			
 			if (args.callback) {
@@ -749,6 +759,15 @@ module.exports = Class.create({
 		var request = args.request;
 		var response = args.response;
 		args.callback = callback;
+		
+		// check for early abort (client error)
+		if (request.socket._pixl_data.aborted) {
+			if (args.callback) {
+				args.callback();
+				delete args.callback;
+			}
+			return;
+		}
 		
 		var ips = this.getAllClientIPs(request);
 		var ip = this.getPublicIP(ips);
