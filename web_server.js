@@ -867,7 +867,9 @@ module.exports = Class.create({
 				form.parse(request, function(err, _fields, _files) {
 					args.perf.end('read');
 					if (err) {
-						self.logError(400, "Error processing data from: " + ip + ": " + request.url + ": " + err);
+						self.logError(400, "Error processing data from: " + ip + ": " + request.url + ": " + err, 
+							{ ips: ips, uri: request.url, headers: request.headers }
+						);
 						self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
 						return;
 					}
@@ -895,7 +897,9 @@ module.exports = Class.create({
 						socket: request.socket._pixl_data.id
 					});
 					if (total_bytes > bytesMax) {
-						self.logError(413, "Error processing data from: " + ip + ": " + request.url + ": Max data size exceeded");
+						self.logError(413, "Error processing data from: " + ip + ": " + request.url + ": Max data size exceeded", 
+							{ ips: ips, uri: request.url, headers: request.headers }
+						);
 						request.socket.end();
 						
 						// note: request ending here without a call to sendHTTPResponse, hence the args.callback is fired
@@ -916,7 +920,9 @@ module.exports = Class.create({
 							args.params = JSON.parse( body.toString() );
 						}
 						catch (e) {
-							self.logError(400, "Error processing data from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e);
+							self.logError(400, "Error processing data from: " + ip + ": " + request.url + ": Failed to parse JSON: " + e, 
+								{ ips: ips, uri: request.url, headers: request.headers, body: body.toString() }
+							);
 							self.sendHTTPResponse( args, "400 Bad Request", {}, "400 Bad Request" );
 							return;
 						}
