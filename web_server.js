@@ -848,8 +848,9 @@ module.exports = Class.create({
 		// post or get/head
 		if ((request.method != 'HEAD') && (request.headers['content-length'] || request.headers['transfer-encoding'])) {
 			var content_type = request.headers['content-type'] || '';
+			var content_encoding = request.headers['content-encoding'] || '';
 			
-			if (content_type.match(/(multipart|urlencoded)/i)) {
+			if (content_type.match(/(multipart|urlencoded)/i) && !content_encoding) {
 				// use formidable for the heavy lifting
 				var form = new Formidable.IncomingForm();
 				form.keepExtensions = true;
@@ -914,7 +915,7 @@ module.exports = Class.create({
 					// request body is complete
 					var body = Buffer.concat(chunks, total_bytes);
 					
-					if (content_type.match( self.regexJSONContent )) {
+					if (content_type.match(self.regexJSONContent) && !content_encoding) {
 						// parse json
 						try {
 							args.params = JSON.parse( body.toString() );
