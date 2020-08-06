@@ -852,11 +852,13 @@ module.exports = Class.create({
 			
 			if (content_type.match(/(multipart|urlencoded)/i) && !content_encoding) {
 				// use formidable for the heavy lifting
-				var form = new Formidable.IncomingForm();
-				form.keepExtensions = true;
-				form.maxFieldsSize = self.config.get('http_max_upload_size');
-				form.hash = false;
-				form.uploadDir = self.config.get('http_temp_dir');
+				var form = new Formidable.IncomingForm({
+					keepExtensions: true,
+					maxFieldsSize: self.config.get('http_max_upload_size'),
+					maxFileSize: self.config.get('http_max_upload_size'),
+					hash: false,
+					uploadDir: self.config.get('http_temp_dir')
+				});
 				
 				form.on('progress', function(bytesReceived, bytesExpected) {
 					self.logDebug(9, "Upload progress: " + bytesReceived + " of " + bytesExpected + " bytes", {
