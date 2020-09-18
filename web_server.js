@@ -55,6 +55,7 @@ module.exports = Class.create({
 		http_max_requests_per_connection: 0,
 		http_max_concurrent_requests: 0,
 		http_max_queue_length: 0,
+		http_max_queue_active: 0,
 		http_queue_skip_uri_match: false,
 		http_clean_headers: false,
 		http_log_socket_errors: true,
@@ -135,6 +136,7 @@ module.exports = Class.create({
 		// setup queue to handle all requests
 		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
 		this.maxQueueLength = this.config.get('http_max_queue_length');
+		this.maxQueueActive = this.config.get('http_max_queue_active');
 		
 		this.queueSkipMatch = this.config.get('http_queue_skip_uri_match') ? 
 			new RegExp( this.config.get('http_queue_skip_uri_match') ) : false;
@@ -730,12 +732,32 @@ module.exports = Class.create({
 			return;
 		}
 		
-		if (this.maxQueueLength && (this.queue.length() >= this.maxQueueLength)) {
-			// queue is maxed out, reject request immediately
+		if (this.maxQueueActive && (this.queue.running() >= this.maxQueueActive)) {
+			// queue is maxed out on active reqs, reject request immediately
 			var ips = args.ips = this.getAllClientIPs(request);
 			var ip = args.ip = this.getPublicIP(ips);
 			
-			this.logError(429, "Queue is maxed out (" + this.queue.length() + " pending reqs), denying request from: " + ip, { 
+			this.logError(429, "Queue is maxed out (" + this.queue.running() + " active reqs), denying new request from: " + ip, { 
+				ips: ips, 
+				uri: request.url, 
+				headers: request.headers,
+				pending: this.queue.length(),
+				active: this.queue.running(),
+				sockets: this.numConns
+			});
+			
+			args.perf = new Perf();
+			args.perf.begin();
+			this.sendHTTPResponse( args, "429 Too Many Requests", {}, "429 Too Many Requests (queue maxed out)" );
+			return;
+		}
+		
+		if (this.maxQueueLength && (this.queue.length() >= this.maxQueueLength)) {
+			// queue is maxed out on pending reqs, reject request immediately
+			var ips = args.ips = this.getAllClientIPs(request);
+			var ip = args.ip = this.getPublicIP(ips);
+			
+			this.logError(429, "Queue is maxed out (" + this.queue.length() + " pending reqs), denying new request from: " + ip, { 
 				ips: ips, 
 				uri: request.url, 
 				headers: request.headers,

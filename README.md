@@ -188,13 +188,13 @@ This sets the filename to look for when directories are requested.  It defaults 
 
 ## http_server_signature
 
-This is a string to send back to the client with every request, as the `Server` HTTP response header.  This is typically used to declare the web server software being used.  The default is `WebServer`;
+This is a string to send back to the client with every request, as the `Server` HTTP response header.  This is typically used to declare the web server software being used.  The default is `WebServer`.
 
 ## http_compress_text
 
 This is a boolean indicating whether or not to compress text responses using [zlib](https://nodejs.org/api/zlib.html) software compression in Node.js.  The default is `false`.  The compression format is chosen automatically based on the `Accept-Encoding` request header sent from the client.  The supported formats are Brotli (see [http_enable_brotli](#http_enable_brotli)), Gzip and Deflate, chosen in that order.
 
-You can force compression on an individual response basis, by including a `X-Compress: 1` response header in your URI handler code.  The web server will detect this header and force-enable compression on the data, regardless of the `http_compress_text` or `http_regex_text` settings.  Note that it still honors the client `Accept-Encoding` header, and will only enable compression if this request header is present and contains `gzip`.
+You can force compression on an individual response basis, by including a `X-Compress: 1` response header in your URI handler code.  The web server will detect this outgoing header and force-enable compression on the data, regardless of the `http_compress_text` or `http_regex_text` settings.  Note that it still honors the client `Accept-Encoding` header, and will only enable compression if this request header is present and contains a supported scheme.
 
 **Note:** The legacy `http_gzip_text` property is still supported, and is now a shortcut for `http_compress_text`.
 
@@ -369,6 +369,25 @@ The `http_max_queue_length` property is designed to work in conjunction with [ht
 ```
 
 The error log data column includes some additional information including the total requests pending, the number of concurrent active requests, and the number of open sockets.
+
+## http_max_queue_active
+
+The `http_max_queue_active` property is designed to work in conjunction with [http_max_connections](#http_max_connections), [http_max_concurrent_requests](#http_max_concurrent_requests) and [http_max_queue_length](#http_max_queue_length).  It sets an upper maximum for number of concurrent *active* requests in the queue (i.e. concurrent active requests), before new ones are immediately rejected with an `HTTP 429` response, without actually queueing up.  This defaults to `0` (disabled), which means there is no imposed limit at the queue level.
+
+The only reason you'd ever need to set this property is to handle a request overload situation by rejecting requests out of the queue via `HTTP 429`, rather than blocking them at the socket level (hard close), and also not allowing them to queue up (potential lag situation).  Example configuration:
+
+```json
+{
+	"http_max_connections": 8192,
+	"http_max_concurrent_requests": 1024,
+	"http_max_queue_length": 1024,
+	"http_max_queue_active": 1024
+}
+```
+
+The idea here is that pixl-server-web will allow up to 1,024 concurrent requests, but additional requests beyond the maximum are still accepted and responded to with a nice `HTTP 429` response, rather than the alternatives (i.e. allowing requests to queue up, possibly introducing unwanted lag, or performing a hard socket close).  This works as long as the total concurrent sockets do not exceed the upper limit (8,192 in this case).
+
+With both `http_max_queue_length` and `http_max_queue_active` set to non-zero values, the first limit reached aborts the request.
 
 ## http_queue_skip_uri_match
 
