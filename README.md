@@ -373,7 +373,7 @@ The error log data column includes some additional information including the tot
 
 ## http_max_queue_active
 
-The `http_max_queue_active` property is designed to work in conjunction with [http_max_connections](#http_max_connections), [http_max_concurrent_requests](#http_max_concurrent_requests) and [http_max_queue_length](#http_max_queue_length).  It sets an upper maximum for number of concurrent *active* requests in the queue (i.e. concurrent active requests), before new ones are immediately rejected with an `HTTP 429` response, without actually queueing up.  This defaults to `0` (disabled), which means there is no imposed limit at the queue level.
+The `http_max_queue_active` property is designed to work in conjunction with [http_max_connections](#http_max_connections), [http_max_concurrent_requests](#http_max_concurrent_requests) and [http_max_queue_length](#http_max_queue_length).  It sets an upper maximum for number of concurrent *active* requests in the queue (i.e. concurrent active requests), before new ones are immediately rejected with an `HTTP 429` response, without actually queueing up.  This defaults to `0` (disabled), which means there is no limit imposed at the queue level.
 
 The only reason you'd ever need to set this property is to handle a request overload situation by rejecting requests out of the queue via `HTTP 429`, rather than blocking them at the socket level (hard close), and also not allowing them to queue up (potential lag situation).  Example configuration:
 
