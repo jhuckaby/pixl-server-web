@@ -36,6 +36,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [http_max_connections](#http_max_connections)
 	* [http_max_concurrent_requests](#http_max_concurrent_requests)
 	* [http_max_queue_length](#http_max_queue_length)
+	* [http_max_queue_active](#http_max_queue_active)
 	* [http_queue_skip_uri_match](#http_queue_skip_uri_match)
 	* [http_clean_headers](#http_clean_headers)
 	* [http_log_socket_errors](#http_log_socket_errors)
