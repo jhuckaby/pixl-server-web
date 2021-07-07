@@ -670,8 +670,12 @@ module.exports = {
 					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
 					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
 					
-					test.ok( !resp.headers['content-encoding'], "Content-Encoding header should NOT be present!" );
+					test.ok( !resp.headers['content-encoding'], "Content-Encoding header should NOT be present for a GIF!" );
 					test.ok( resp.headers['content-length'] == 43, "spacer.gif is not 43 bytes as expected: " + resp.headers['content-length'] );
+					
+					test.ok( !!data, "No data object present in HEAD response" );
+					test.ok( data.length == 0, "Non-zero data length in HEAD response: " + data.length );
+					
 					test.done();
 				} 
 			);
@@ -751,6 +755,98 @@ module.exports = {
 					test.ok( !resp.headers['content-encoding'], "Content-Encoding header should NOT be present!" );
 					
 					test.ok( !!data, "Got data in response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// static range request
+		function testStaticRangeRequest(test) {
+			// test ranged HTTP GET to webserver backend
+			var opts = {
+				headers: {
+					'Accept-Encoding': 'none',
+					'Range': 'bytes=31-49'
+				}
+			};
+			request.get( 'http://127.0.0.1:3020/index.html', opts,
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 206, "Got 206 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/text\/html/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
+					
+					test.ok( !resp.headers['content-encoding'], "Content-Encoding header not present" );
+					
+					test.ok( !!data, "Got HTML in response" );
+					test.ok( data.toString() === '<title>Test</title>', "index.html range snippet is correct: >>>" + data.toString() + "<<<" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// invalid range request
+		function testStaticInvalidRangeRequest(test) {
+			// test simple HTTP GET to webserver backend
+			var opts = {
+				headers: {
+					'Accept-Encoding': 'none',
+					'Range': 'bytes=1-0'
+				}
+			};
+			request.get( 'http://127.0.0.1:3020/index.html', opts,
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/text\/html/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
+					
+					test.ok( !resp.headers['content-encoding'], "Content-Encoding header not present" );
+					
+					// invalid range will fallback to entire file
+					test.ok( !!data, "Got HTML in response" );
+					test.ok( data.toString() === fs.readFileSync('index.html', 'utf8'), "index.html content is correct" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// static directory request
+		function testStaticDirectoryRequest(test) {
+			// test simple HTTP GET to webserver backend
+			request.get( 'http://127.0.0.1:3020/',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/text\/html/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/gzip/), "Content-Encoding header contains gzip" );
+					
+					test.ok( !!data, "Got HTML in response" );
+					test.ok( data.toString() === fs.readFileSync('index.html', 'utf8'), "index.html content is correct" );
 					
 					test.done();
 				} 
@@ -901,12 +997,16 @@ module.exports = {
 			// wait for all sockets to close for next test (requires clean slate)
 			var self = this;
 			
+			test.debug("Connections still open: ", Object.keys(self.web_server.conns) );
+			
 			for (var id in this.web_server.conns) {
 				this.web_server.conns[id].end();
 			}
 			
 			async.whilst(
-				function() { return Object.keys(self.web_server.conns).length > 0; },
+				function(cb) { 
+					cb( null, Object.keys(self.web_server.conns).length > 0 );
+				},
 				function(callback) {
 					setTimeout( function() { callback(); }, 100 );
 				},
@@ -1347,12 +1447,16 @@ module.exports = {
 			// wait for all sockets to close for next test (requires clean slate)
 			var self = this;
 			
+			test.debug("Connections still open: ", Object.keys(self.web_server.conns) );
+			
 			for (var id in this.web_server.conns) {
 				this.web_server.conns[id].end();
 			}
 			
 			async.whilst(
-				function() { return Object.keys(self.web_server.conns).length > 0; },
+				function(cb) { 
+					cb( null, Object.keys(self.web_server.conns).length > 0 );
+				},
 				function(callback) {
 					setTimeout( function() { callback(); }, 100 );
 				},

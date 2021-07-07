@@ -1,6 +1,6 @@
 {
 	"name": "pixl-server-web",
-	"version": "1.1.36",
+	"version": "1.2.0",
 	"description": "A web server component for the pixl-server framework.",
 	"author": "Joseph Huckaby <jhuckaby@gmail.com>",
 	"homepage": "https://github.com/jhuckaby/pixl-server-web",
@@ -21,14 +21,14 @@
 	],
 	"dependencies": {
 		"pixl-server": "^1.0.0",
-		"pixl-class": "^1.0.0",
 		"pixl-perf": "^1.0.0",
-		"pixl-acl": "1.0.1",
+		"pixl-acl": "^1.0.1",
+		"class-plus": "^1.0.0",
 		"formidable": "1.2.1",
-		"node-static": "0.7.10",
 		"errno": "0.1.7",
 		"stream-meter": "1.0.4",
-		"async": "2.6.0"
+		"async": "3.2.0",
+		"mime": "2.5.2"
 	},
 	"devDependencies": {
 		"pixl-unit": "^1.0.0",

@@ -87,7 +87,6 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 	* [Self-Referencing URLs](#self-referencing-urls)
 	* [Custom Method Handlers](#custom-method-handlers)
 	* [Let's Encrypt SSL Certificates](#lets-encrypt-ssl-certificates)
-	* [Greenlock](#greenlock)
 - [License](#license)
 
 # Usage
@@ -435,8 +434,6 @@ When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) 
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, and possibly `https_cert_file` and `https_key_file` for this to work.
-
-Note that if you use [Greenlock](#greenlock) for SSL certificate automation, you can omit `https_cert_file` and `https_key_file`.
 
 ## https_port
 
@@ -1279,44 +1276,6 @@ Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily 
 ```
 
 Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
-
-## Greenlock
-
-pixl-server-web includes support for [Greenlock](https://www.npmjs.com/package/greenlock), which provides free, fully automated HTTPS certificates issued by [Let's Encrypt](https://letsencrypt.org/).  It handles auto-renewal as well, however in my experience this only works some of the time.
-
-To use Greenlock with pixl-server-web, first you have to install the [greenlock-express](https://www.npmjs.com/package/greenlock-express) module.  We don't include this by default because it greatly expands the dependency tree, including some binary C++ modules (yuck).
-
-```
-npm install greenlock-express
-```
-
-Next, make sure you enable the [https](#https) configuration option, and set a [port](#https_port) (you do *not* have to set [https_cert_file](#https_cert_file) or [https_key_file](#https_key_file) when using Greenlock).
-
-```js
-{
-	"https": true,
-	"https_port": 443
-}
-```
-
-Finally, include a `greenlock` object in your configuration (alongside the `https` property), and fill it with all the required Greenlock parameters:
-
-```js
-{
-	"greenlock": {
-		"version": "draft-11",
-		"server": "https://acme-v02.api.letsencrypt.org/directory",
-		"configDir": "/opt/yourapp/conf/certs",
-		"approvedDomains": [ "mydomain.com", "www.mydomain.com" ],
-		"email": "me@mydomain.com",
-		"agreeTos": true,
-		"communityMember": false,
-		"telemetry": false
-	}
-}
-```
-
-Make sure you follow all the instructions on the [Greenlock](https://www.npmjs.com/package/greenlock-express) module website, because everything has to be perfect, and there are a number of [non-obvious gotchas](https://www.npmjs.com/package/greenlock-express#what-if-the-example-didnt-work).
 
 # License
 
