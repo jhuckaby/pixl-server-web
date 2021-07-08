@@ -735,6 +735,35 @@ module.exports = {
 			);
 		},
 		
+		// static file get
+		// this file is not pre-gzipped, so web server should do it in real time
+		// this will use brotli
+		function testStaticTextRequest2(test) {
+			// test simple HTTP GET to webserver backend
+			request.get( 'http://127.0.0.1:3020/robots.txt',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/text\/plain/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/br/), "Content-Encoding header contains br" );
+					
+					test.ok( !!data, "Got text in response" );
+					test.ok( data.toString() === fs.readFileSync('robots.txt', 'utf8'), "robots.txt content is correct" );
+					
+					test.done();
+				} 
+			);
+		},
+		
 		// binary get
 		// should NOT be gzip encoded
 		function testStaticBinaryRequest(test) {
