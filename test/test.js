@@ -2,9 +2,8 @@
 // Copyright (c) 2017 - 2019 Joseph Huckaby
 // Released under the MIT License
 
-var os = require('os');
 var fs = require('fs');
-var path = require('path');
+var net = require('net');
 var crypto = require('crypto');
 var async = require('async');
 
@@ -41,6 +40,7 @@ var server = new PixlServer({
 			"http_compress_text": 1,
 			"http_enable_brotli": 1,
 			"http_timeout": 5,
+			"http_socket_prelim_timeout": 2,
 			"http_response_headers": {
 				"Via": "WebServerTest 1.0"
 			},
@@ -1020,6 +1020,25 @@ module.exports = {
 					test.done();
 				} 
 			);
+		},
+		
+		// socket prelim timeout
+		function testSocketPrelimTimeout(test) {
+			var connected_time = 0;
+			var client = net.connect({ port: 3020 }, function() {
+				test.debug("Connected to port 3020 (raw socket)");
+				connected_time = Date.now() / 1000;
+			});
+			client.on('data', function(data) {
+				test.ok( false, "Should NOT have received any data from socket! " + data );
+			});
+			client.on('end', function() {
+				test.debug("Raw socket disconnected");
+				var now = Date.now() / 1000;
+				var elapsed = now - connected_time;
+				test.ok( Math.abs(elapsed - 2.0) < 1.0, "Incorrect time elapsed for socket prelim timeout: " + elapsed );
+				test.done();
+			});
 		},
 		
 		function waitForAllSockets(test) {

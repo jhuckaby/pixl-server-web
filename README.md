@@ -269,6 +269,18 @@ This sets the HTTP Keep-Alive idle timeout for all sockets.  If omitted, the Nod
 
 This feature was introduced in Node.js version 8.  Prior to that, the [http_timeout](#http_timeout) was used as the Keep-Alive timeout.
 
+## http_socket_prelim_timeout
+
+This sets a special preliminary timeout for brand new sockets when they are first connected.  If an HTTP request doesn't come over the socket within this timeout (specified in seconds), then the socket is hard closed.  This timeout should always be set lower than the [http_timeout](#http_timeout) if used.  This defaults to `0` (disabled).  Example use:
+
+```js
+{
+	"http_socket_prelim_timeout": 3
+}
+```
+
+The idea here is to prevent certain DDoS-style attacks, where an attacker opens a large amount of TCP connections without sending any requests over them.
+
 ## http_max_requests_per_connection
 
 This allows you to set a maximum number of requests to allow per Keep-Alive connection.  It defaults to `0` which means unlimited.  If set, and the maximum is reached, a `Connection: close` header is returned, politely asking the client to close the connection.  It does not actually hard-close the socket.  Example:
