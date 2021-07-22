@@ -281,6 +281,8 @@ This sets a special preliminary timeout for brand new sockets when they are firs
 
 The idea here is to prevent certain DDoS-style attacks, where an attacker opens a large amount of TCP connections without sending any requests over them.
 
+**Note:** Do not enable this feature if you attach a WebSocket server such as [ws](https://github.com/websockets/ws).
+
 ## http_max_requests_per_connection
 
 This allows you to set a maximum number of requests to allow per Keep-Alive connection.  It defaults to `0` which means unlimited.  If set, and the maximum is reached, a `Connection: close` header is returned, politely asking the client to close the connection.  It does not actually hard-close the socket.  Example:
