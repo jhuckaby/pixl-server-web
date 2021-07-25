@@ -25,6 +25,7 @@ This module is a component for use in [pixl-server](https://www.npmjs.com/packag
 		+ [request](#request)
 		+ [close](#close)
 	* [http_keep_alive_timeout](#http_keep_alive_timeout)
+	* [http_socket_prelim_timeout](#http_socket_prelim_timeout)
 	* [http_max_requests_per_connection](#http_max_requests_per_connection)
 	* [http_gzip_opts](#http_gzip_opts)
 	* [http_enable_brotli](#http_enable_brotli)
