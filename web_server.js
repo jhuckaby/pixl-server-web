@@ -356,13 +356,31 @@ class WebServer extends Component {
 		if (this.http) {
 			this.logDebug(2, "Shutting down HTTP server");
 			
+			for (var id in this.requests) {
+				var args = this.requests[id];
+				this.logDebug(4, "Request still active: " + args.id, {
+					id: args.id,
+					ips: args.ips,
+					uri: args.request ? args.request.url : '',
+					headers: args.request ? args.request.headers : {},
+					socket: (args.request && args.request.socket && args.request.socket._pixl_data) ? args.request.socket._pixl_data.id : '',
+					stats: args.state,
+					date: args.date,
+					age: (Date.now() / 1000) - args.date
+				});
+				if (args.callback) {
+					args.callback();
+					delete args.callback;
+				}
+			} // foreach req
+			
 			for (var id in this.conns) {
-				this.logDebug(9, "Closing HTTP connection: " + id);
+				this.logDebug(4, "Closing HTTP connection: " + id);
 				// this.conns[id].destroy();
 				this.conns[id].end();
 				this.conns[id].unref();
 				this.numConns--;
-			}
+			} // foreach conn
 			
 			this.http.close( function() { self.logDebug(3, "HTTP server has shut down."); } );
 			
