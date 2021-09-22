@@ -707,6 +707,22 @@ module.exports = {
 			);
 		},
 		
+		// Error (Back-end Timeout)
+		function testBackEndTimeout(test) {
+			var self = this;
+			var web = this.web_server;
+			web.config.set('http_request_timeout', 0.5); // 500ms
+			
+			request.get( 'http://127.0.0.1:3020/sleep?ms=750', {},
+				function(err, resp, data, perf) {
+					web.config.set('http_request_timeout', 0); // reset timeout
+					test.ok( !err, "Unexpected error from PixlRequest: " + err );
+					test.ok( resp.statusCode == 408, "Unexpected HTTP response code: " + resp.statusCode );
+					test.done();
+				} 
+			);
+		},
+		
 		// static file get
 		// check ttl, check gzip
 		function testStaticTextRequest(test) {

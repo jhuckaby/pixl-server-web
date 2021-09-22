@@ -1,6 +1,6 @@
 # Overview
 
-This module is a component for use in [pixl-server](https://www.npmjs.com/package/pixl-server).  It implements a simple web server with support for both HTTP and HTTPS, serving static files, and hooks for adding custom URI handlers.
+This module is a component for use in [pixl-server](https://www.github.com/jhuckaby/pixl-server).  It implements a simple web server with support for both HTTP and HTTPS, serving static files, and hooks for adding custom URI handlers.
 
 # Table of Contents
 
@@ -137,7 +137,7 @@ server.startup( function() {
 } );
 ```
 
-Notice how we are loading the [pixl-server](https://www.npmjs.com/package/pixl-server) parent module, and then specifying [pixl-server-web](https://www.npmjs.com/package/pixl-server-web) as a component:
+Notice how we are loading the [pixl-server](https://www.github.com/jhuckaby/pixl-server) parent module, and then specifying [pixl-server-web](https://www.github.com/jhuckaby/pixl-server-web) as a component:
 
 ```js
 components: [
@@ -213,7 +213,7 @@ This param allows you to send back any additional custom HTTP headers with each 
 
 ```js
 {
-	http_response_headers: {
+	"http_response_headers": {
 		"X-My-Custom-Header": "12345",
 		"X-Another-Header": "Hello"
 	}
@@ -223,6 +223,20 @@ This param allows you to send back any additional custom HTTP headers with each 
 ## http_timeout
 
 This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.
+
+This only applies to reading from sockets when data is expected.  It is an *idle read timeout* on the socket itself, and doesn't apply to request handlers.
+
+## http_request_timeout
+
+This property sets an actual hard request timeout for all incoming requests.  If the total combined request processing, handling and response time exceeds this value, specified in seconds, then the request is aborted and a `HTTP 408 Request Timeout` response is sent back to the client.  This defaults to `0` (disabled).  Example use:
+
+```js
+{
+	"http_request_timeout": 300
+}
+```
+
+Note that this includes request processing time (e.g. receiving uploaded data from a HTTP POST).
 
 ## http_keep_alives
 
@@ -523,7 +537,7 @@ server.WebServer.addURIHandler( /^\/custom\/match\/$/i, 'Custom2', function(args
 
 Your handler function is passed exactly two arguments.  First, an `args` object containing all kinds of useful information about the request (see [args](#args) below), and a callback function that you must call when the request is complete and you want to send a response.
 
-If you specified a regular expression with paren groups for the URI, the matches array will be included in the `args` object as `args.matches`.  Using this you can extract your matched groups from the URI, for e.g. `/^\/api\/(\w+)/`.
+If you specified a regular expression with parenthesis groups for the URI, the matches array will be included in the `args` object as `args.matches`.  Using this you can extract your matched groups from the URI, for e.g. `/^\/api\/(\w+)/`.
 
 Note that by default, URIs are only matched on their path portion (i.e. sans query string).  To include the query string in URI matches, set the [http_full_uri_match](#http_full_uri_match) configuration property to `true`.
 
@@ -791,11 +805,15 @@ var session_id = args.cookies['session_id'];
 
 ### args.perf
 
-This is a reference to a [pixl-perf](https://www.npmjs.com/package/pixl-perf) object, which is used internally by the web server to track performance metrics for the request.  The metrics may be logged at the end of each request (see [Logging](#logging) below) and included in the stats (see [Stats](#stats) below).
+This is a reference to a [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) object, which is used internally by the web server to track performance metrics for the request.  The metrics may be logged at the end of each request (see [Logging](#logging) below) and included in the stats (see [Stats](#stats) below).
 
 ### args.server
 
 This is a reference to the pixl-server object which handled the request.
+
+### args.id
+
+This is an internal ID string used by the server to track and log individual requests.
 
 ## Request Filters
 
@@ -900,7 +918,7 @@ Here are descriptions of the data JSON properties:
 | `host` | The hostname from the request URL. |
 | `perf` | Performance metrics, see below. |
 
-The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.npmjs.com/package/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
+The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
 
 If you only want to log *some* requests, but not all of them, you can specify a regular expression in the [http_regex_log](#http_regex_log) configuration property, which is matched against the incoming request URIs.  Example:
 
@@ -1114,7 +1132,7 @@ The `recent` array is a sorted list of the last 10 completed requests (most rece
 | `host` | String | The hostname from the request URL. |
 | `ips` | Array | The array of client IPs, including proxy IPs. |
 | `ua` | String | The client's `User-Agent` string. |
-| `perf` | Object | A [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance metrics object containing stats for the request. |
+| `perf` | Object | A [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) performance metrics object containing stats for the request. |
 
 If you would like more than 10 requests, set the [http_recent_requests](#http_recent_requests) configuration property to the number you want.
 
@@ -1129,7 +1147,7 @@ The `queue` object contains information about the request queue.  This includes 
 
 ## Including Custom Stats
 
-To include your own application-level metrics in the `getStats()` output, a [pixl-perf](https://www.npmjs.com/package/pixl-perf) performance tracker is made available to your URI handler code via `args.perf`.  you can call `begin()` and `end()` on this object directly, to measure your own operations:
+To include your own application-level metrics in the `getStats()` output, a [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) performance tracker is made available to your URI handler code via `args.perf`.  you can call `begin()` and `end()` on this object directly, to measure your own operations:
 
 ```js
 server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
@@ -1150,7 +1168,7 @@ server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, 
 
 Please do not call `begin()` or `end()` without arguments, as that will mess up the existing performance tracking.  Also, make sure you prefix your perf keys so you don't collide with the built-in ones.
 
-Alternatively, you can use your own private [pixl-perf](https://www.npmjs.com/package/pixl-perf) object, and then "import" it into the `args.perf` object at the very end of your handler code, just before you fire the callback.  Example:
+Alternatively, you can use your own private [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) object, and then "import" it into the `args.perf` object at the very end of your handler code, just before you fire the callback.  Example:
 
 ```js
 my_perf.end();
@@ -1159,7 +1177,7 @@ args.perf.import( my_perf, "app_" );
 
 This would import all your metrics and prefix the keys with `app_`.
 
-See the [pixl-perf](https://www.npmjs.com/package/pixl-perf) documentation for more details on how to use the tracker.
+See the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) documentation for more details on how to use the tracker.
 
 ## Stats URI Handler
 
@@ -1296,7 +1314,7 @@ Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
 
 **The MIT License (MIT)**
 
-*Copyright (c) 2015 - 2019 Joseph Huckaby.*
+*Copyright (c) 2015 - 2021 Joseph Huckaby.*
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

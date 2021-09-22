@@ -56,7 +56,8 @@ module.exports = Class({
 		http_queue_skip_uri_match: false,
 		http_clean_headers: false,
 		http_log_socket_errors: true,
-		http_full_uri_match: false
+		http_full_uri_match: false,
+		http_request_timeout: 0
 	},
 	
 	conns: null,
@@ -82,6 +83,7 @@ class WebServer extends Component {
 		
 		// setup connections and handlers
 		this.conns = {};
+		this.requests = {};
 		this.uriFilters = [];
 		this.uriHandlers = [];
 		this.methodHandlers = [];
@@ -369,6 +371,7 @@ class WebServer extends Component {
 			}
 			// delete this.http;
 			
+			this.requests = {};
 			this.queue.kill();
 		}
 		
