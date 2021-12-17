@@ -222,7 +222,13 @@ This param allows you to send back any additional custom HTTP headers with each 
 
 ## http_timeout
 
-This sets the idle socket timeout for all incoming HTTP requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.
+This sets the idle socket timeout for all incoming HTTP requests, in seconds.  If omitted, the Node.js default is 120 seconds.  Example:
+
+```js
+{
+	"http_timeout": 120
+}
+```
 
 This only applies to reading from sockets when data is expected.  It is an *idle read timeout* on the socket itself, and doesn't apply to request handlers.
 
@@ -274,19 +280,17 @@ This completely disables Keep-Alives for all connections.  All requests result i
 
 ## http_keep_alive_timeout
 
-This sets the HTTP Keep-Alive idle timeout for all sockets.  If omitted, the Node.js default is 5 seconds.  See [server.keepAliveTimeout](https://nodejs.org/api/http.html#http_server_keepalivetimeout) for details.  Example:
+This sets the HTTP Keep-Alive idle timeout for all sockets, measured in seconds.  If omitted, the Node.js default is 5 seconds.  See [server.keepAliveTimeout](https://nodejs.org/api/http.html#http_server_keepalivetimeout) for details.  Example:
 
 ```js
 {
-	"http_keep_alive_timeout": 5000
+	"http_keep_alive_timeout": 5
 }
 ```
 
-This feature was introduced in Node.js version 8.  Prior to that, the [http_timeout](#http_timeout) was used as the Keep-Alive timeout.
-
 ## http_socket_prelim_timeout
 
-This sets a special preliminary timeout for brand new sockets when they are first connected.  If an HTTP request doesn't come over the socket within this timeout (specified in seconds), then the socket is hard closed.  This timeout should always be set lower than the [http_timeout](#http_timeout) if used.  This defaults to `0` (disabled).  Example use:
+This sets a special preliminary timeout for brand new sockets when they are first connected, measured in seconds.  If an HTTP request doesn't come over the socket within this timeout (specified in seconds), then the socket is hard closed.  This timeout should always be set lower than the [http_timeout](#http_timeout) if used.  This defaults to `0` (disabled).  Example use:
 
 ```js
 {

@@ -186,6 +186,20 @@ module.exports = {
 			);
 		},
 		
+		function testBadRequest(test) {
+			// test bad HTTP GET request to webserver backend
+			// this still resolves to the root dir index due to the ../
+			request.get( 'http://127.0.0.1:3020/%0ASet-Cookie%3Acrlfinjection/../',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.done();
+				} 
+			);
+		},
+		
 		// query string
 		function testQueryString(test) {
 			// test simple HTTP GET request with query string
