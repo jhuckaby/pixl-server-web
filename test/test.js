@@ -102,7 +102,9 @@ module.exports = {
 						files: args.files,
 						headers: args.request.headers,
 						socket_id: args.request.socket._pixl_data.id || 0,
-						method: args.request.method
+						method: args.request.method,
+						ip: args.ip,
+						ips: args.ips
 					} );
 				} );
 				
@@ -1282,6 +1284,56 @@ module.exports = {
 					test.ok( resp.statusCode == 302, "Got 302 response: " + resp.statusCode );
 					test.ok( !!resp.headers['location'], "Got Location header" );
 					test.ok( !!resp.headers['location'].match(/redirected/), "Correct Location header");
+					test.done();
+				} 
+			);
+		},
+		
+		// x-forwarded-for
+		function testForwardedFor(test) {
+			request.json( 'http://127.0.0.1:3020/json', false, 
+				{
+					headers: {
+						"X-Forwarded-For": "1.2.3.4" // external IP
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( data.ip === "1.2.3.4", "Correct Public IP in response: " + data.ip );
+					test.done();
+				} 
+			);
+		},
+		function testForwardedForGarbage(test) {
+			request.json( 'http://127.0.0.1:3020/json', false, 
+				{
+					headers: {
+						"X-Forwarded-For": "garbage, 1.2.3.4, more garbage" // external IP
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( data.ip === "1.2.3.4", "Correct Public IP in response: " + data.ip );
+					test.done();
+				} 
+			);
+		},
+		function testForwardedForAllGarbage(test) {
+			request.json( 'http://127.0.0.1:3020/json', false, 
+				{
+					headers: {
+						"X-Forwarded-For": "garbage" // external IP
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( data.ip === "127.0.0.1", "Correct Public IP in response: " + data.ip );
 					test.done();
 				} 
 			);

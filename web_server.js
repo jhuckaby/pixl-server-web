@@ -306,13 +306,18 @@ class WebServer extends Component {
 	}
 	
 	getPublicIP(ips) {
+		// filter out garbage that doesn't resemble ips
+		var real_ips = ips.filter( function(ip) {
+			return ip.match( /^([\d\.]+|[a-f0-9:]+)$/ );
+		} );
+		
 		// determine first public IP from list of IPs
-		for (var idx = 0, len = ips.length; idx < len; idx++) {
-			if (!this.aclPrivateRanges.check(ips[idx])) return ips[idx];
+		for (var idx = 0, len = real_ips.length; idx < len; idx++) {
+			if (!this.aclPrivateRanges.check(real_ips[idx])) return real_ips[idx];
 		}
 		
 		// default to first ip
-		return ips[0];
+		return real_ips[0];
 	}
 	
 	getSelfURL(request, uri) {
