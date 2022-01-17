@@ -581,6 +581,36 @@ server.WebServer.addURIHandler( /^\/secret.txt$/, "Special Secrets", true, '/pri
 
 Note that the `Content-Type` response header is automatically set based on the target file you are redirecting to.
 
+## Static Directory Handlers
+
+If you would like to host static files in other places besides [http_htdocs_dir](#http_htdocs_dir), possibly with different options, then look no further than the `addDirectoryHandler()` method.  This allows you to set up static file handling with a custom base URI, a custom base directory on disk, and apply other options as well.  You can call this method as many times as you like to setup multiple static file directories.  Example:
+
+```js
+server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom' );
+```
+
+The above example would catch all incoming requests starting with `/mycustomdir`, and serve up static files inside of the `/var/www/custom` directory on disk (and possibly nested directories as well).  So a URL such as `http://MYSERVER/mycustomdir/foo/file1.txt` would map to the file `/var/www/custom/foo/file1.txt` on disk.
+
+In this case a default TTL is applied to all files via [http_static_ttl](#http_static_ttl).  If you would like to customize the TTL for your custom static directory, as well as specify other options, pass in an object as the 3rd argument to `addDirectoryHandler()`.  Example of this:
+
+```js
+server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom', {
+	acl: true
+	ttl: 3600,
+	headers: {
+		'X-Custom': '12345'
+	}
+} );
+```
+
+In this example the files would be restricted to client IP addresses matching the [http_default_acl](#http_default_acl), and would be served up with a custom TTL of 3600 seconds (specifically, the `Cache-Control` response header would be set to `public, max-age=3600`).  Finally, all static file responses would include the `X-Custom: 12345` header.  Here is a list of the available properties in the options object:
+
+| Property Name | Type | Description |
+|---------------|------|-------------|
+| `acl` | Boolean | Optionally restrict the static files to an IP-based ACL.  You can set this to Boolean `true` to use the [http_default_acl](#http_default_acl), or specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing). |
+| `ttl` | Mixed | Optionally customize the TTL (`Cache-Control` header).  Set this to a number to use the `public, max-age=###` format, or a string to specify the entire header value yourself. |
+| `headers` | Object | Optionally include additional HTTP headers with every static response.  Note that you cannot use this to override built-in headers like `Content-Type`, `Content-Length`, `ETag`, and others.  It can only be used to insert unique headers. |
+
 ## Sending Responses
 
 There are actually four different ways you can send an HTTP response.  They are all detailed below:
@@ -1261,7 +1291,7 @@ We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) me
 /usr/local/bin/certbot-auto certonly --webroot -w /var/www/html -d mydomain.com
 ```
 
-If you need certificates for multiple subdomains, you can add them to the end of the command, delimited by spaces, e.g. `-d mydomain.com www.mydomain.com`.
+If you need certificates for multiple subdomains, you can repeat the `-d` flag, e.g. `-d mydomain.com -d www.mydomain.com`.
 
 Then follow the instructions on the console.  Certbot will ask you a number of questions including asking you for your e-mail address, accepting terms of service, etc.  When you are done, you should see a success message like this:
 
@@ -1318,7 +1348,7 @@ Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
 
 **The MIT License (MIT)**
 
-*Copyright (c) 2015 - 2021 Joseph Huckaby.*
+*Copyright (c) 2015 - 2022 Joseph Huckaby.*
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

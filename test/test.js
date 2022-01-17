@@ -2,6 +2,7 @@
 // Copyright (c) 2017 - 2019 Joseph Huckaby
 // Released under the MIT License
 
+var Path = require('path');
 var fs = require('fs');
 var net = require('net');
 var crypto = require('crypto');
@@ -149,6 +150,8 @@ module.exports = {
 						fs.readFileSync( 'spacer.gif' )
 					);
 				} );
+				
+				web_server.addDirectoryHandler( '/parentdir', Path.dirname(__dirname), { ttl: 25, headers: { 'X-Frogs': 'Toads' } } );
 				
 				// test suite ready
 				callback();
@@ -901,11 +904,87 @@ module.exports = {
 					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
 					test.ok( !!resp.headers['cache-control'].match(/max\-age\=3600/), "Cache-Control header contains correct TTL" );
 					
+					// Note: this is gzip (and not brotli) because of the pre-gzipped static file (index.html.gz)
 					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
 					test.ok( !!resp.headers['content-encoding'].match(/gzip/), "Content-Encoding header contains gzip" );
 					
 					test.ok( !!data, "Got HTML in response" );
 					test.ok( data.toString() === fs.readFileSync('index.html', 'utf8'), "index.html content is correct" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// custom static dir
+		function testCustomStaticRequest(test) {
+			// test simple HTTP GET to webserver backend
+			request.get( 'http://127.0.0.1:3020/parentdir/package.json',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( resp.headers['x-frogs'] == "Toads", "Correct X-Frogs header: " + resp.headers['x-frogs'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present" );
+					test.ok( !!resp.headers['content-type'].match(/application\/json/), "Content-Type header contains correct value" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=25/), "Cache-Control header contains correct TTL" );
+					
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present" );
+					test.ok( !!resp.headers['content-encoding'].match(/\bbr\b/), "Content-Encoding header contains br" );
+					
+					test.ok( !!data, "Got JSON in response" );
+					test.ok( data.toString() === fs.readFileSync('../package.json', 'utf8'), "package.json content is correct" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testCustomStaticDirectoryRequest(test) {
+			// test simple HTTP GET to webserver backend
+			request.get( 'http://127.0.0.1:3020/parentdir/test/',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( resp.headers['x-frogs'] == "Toads", "Correct X-Frogs header: " + resp.headers['x-frogs'] );
+					
+					test.ok( !!resp.headers['content-type'], "Content-Type header present (custom)" );
+					test.ok( !!resp.headers['content-type'].match(/text\/html/), "Content-Type header contains correct value (custom)" );
+					
+					test.ok( !!resp.headers['cache-control'], "Cache-Control header present (custom)" );
+					test.ok( !!resp.headers['cache-control'].match(/max\-age\=25/), "Cache-Control header contains correct TTL (custom)" );
+					
+					// Note: this is gzip (and not brotli) because of the pre-gzipped static file (index.html.gz)
+					test.ok( !!resp.headers['content-encoding'], "Content-Encoding header present (custom)" );
+					test.ok( !!resp.headers['content-encoding'].match(/gzip/), "Content-Encoding header contains gzip (custom)" );
+					
+					test.ok( !!data, "Got HTML in response (custom)" );
+					test.ok( data.toString() === fs.readFileSync('index.html', 'utf8'), "index.html content is correct (custom)" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testCustomStaticDirectoryRedirect(test) {
+			// test simple HTTP GET to webserver backend
+			request.get( 'http://127.0.0.1:3020/parentdir/test',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 302, "Got 302 response: " + resp.statusCode );
+					
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( resp.headers['x-frogs'] == "Toads", "Correct X-Frogs header: " + resp.headers['x-frogs'] );
+					
+					test.ok( !!resp.headers['location'], "Location header present (custom)" );
+					test.ok( !!resp.headers['location'].match(/\/parentdir\/test\//), "Location header contains correct value (custom)" );
 					
 					test.done();
 				} 
