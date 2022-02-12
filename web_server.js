@@ -1,6 +1,6 @@
 // Simple HTTP / HTTPS Web Server
 // A component for the pixl-server daemon framework.
-// Copyright (c) 2015 - 2021 Joseph Huckaby
+// Copyright (c) 2015 - 2022 Joseph Huckaby
 // Released under the MIT License
 
 const fs = require('fs');
@@ -25,39 +25,43 @@ module.exports = Class({
 	version: require( __dirname + '/package.json' ).version,
 	
 	defaultConfig: {
-		http_private_ip_ranges: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
-		http_regex_text: "(text|javascript|json|css|html)",
-		http_regex_json: "(javascript|js|json)",
-		http_keep_alives: "default",
-		http_timeout: 120,
-		http_static_index: "index.html",
-		http_static_ttl: 0,
-		http_max_upload_size: 32 * 1024 * 1024,
-		http_temp_dir: os.tmpdir(),
-		http_gzip_opts: {
-			level: zlib.constants.Z_DEFAULT_COMPRESSION, 
-			memLevel: 8 
+		"http_private_ip_ranges": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
+		"http_regex_text": "(text|javascript|json|css|html)",
+		"http_regex_json": "(javascript|js|json)",
+		"http_keep_alives": "default",
+		"http_timeout": 120,
+		"http_static_index": "index.html",
+		"http_static_ttl": 0,
+		"http_max_upload_size": 32 * 1024 * 1024,
+		"http_temp_dir": os.tmpdir(),
+		"http_gzip_opts": {
+			"level": zlib.constants.Z_DEFAULT_COMPRESSION, 
+			"memLevel": 8 
 		},
-		http_brotli_opts: {
-			chunkSize: 16 * 1024,
-			mode: "text",
-			level: 4
+		"http_brotli_opts": {
+			"chunkSize": 16 * 1024,
+			"mode": "text",
+			"level": 4
 		},
-		http_compress_text: false,
-		http_enable_brotli: false,
-		http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
-		http_log_requests: false,
-		http_recent_requests: 10,
-		http_max_connections: 0,
-		http_max_requests_per_connection: 0,
-		http_max_concurrent_requests: 0,
-		http_max_queue_length: 0,
-		http_max_queue_active: 0,
-		http_queue_skip_uri_match: false,
-		http_clean_headers: false,
-		http_log_socket_errors: true,
-		http_full_uri_match: false,
-		http_request_timeout: 0
+		"http_compress_text": false,
+		"http_enable_brotli": false,
+		"http_default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
+		"http_log_requests": false,
+		"http_recent_requests": 10,
+		"http_max_connections": 0,
+		"http_max_requests_per_connection": 0,
+		"http_max_concurrent_requests": 0,
+		"http_max_queue_length": 0,
+		"http_max_queue_active": 0,
+		"http_queue_skip_uri_match": false,
+		"http_clean_headers": false,
+		"http_log_socket_errors": true,
+		"http_full_uri_match": false,
+		"http_request_timeout": 0,
+		
+		"http_req_max_dump_enabled": false,
+		"http_req_max_dump_dir": "",
+		"http_req_max_dump_debounce": 10
 	},
 	
 	conns: null,
@@ -169,6 +173,16 @@ class WebServer extends Component {
 			}
 		}
 		
+		// initialize request max dump system, if enabled
+		this.reqMaxDumpEnabled = this.config.get('http_req_max_dump_enabled');
+		this.reqMaxDumpDir = this.config.get('http_req_max_dump_dir');
+		this.reqMaxDumpDebounce = this.config.get('http_req_max_dump_debounce');
+		this.reqMaxDumpLast = 0;
+		
+		if (this.reqMaxDumpEnabled && this.reqMaxDumpDir && !fs.existsSync(this.reqMaxDumpDir)) {
+			fs.mkdirSync( this.reqMaxDumpDir, { mode: 0o777, recursive: true } );
+		}
+		
 		// listen for tick events to swap stat buffers
 		this.server.on( 'tick', this.tick.bind(this) );
 		
@@ -181,6 +195,40 @@ class WebServer extends Component {
 				self.startHTTPS( callback );
 			}
 			else callback(err);
+		} );
+	}
+	
+	dumpAllRequests(callback) {
+		// create dump file containing info on all active/pending requests
+		// this is called when requests or sockets are maxed out
+		// only write file every N seconds
+		var self = this;
+		var now = Date.now() / 1000;
+		if (now - this.reqMaxDumpLast < this.reqMaxDumpDebounce) return;
+		this.reqMaxDumpLast = now;
+		
+		var dump_file = this.reqMaxDumpDir + '/req-dump-' + os.hostname() + '-' + process.pid + '-' + Date.now().toString(36) + '.json';
+		var json = this.getStats();
+		json.requests = {};
+		
+		for (var id in this.requests) {
+			var args = this.requests[id];
+			var info = {
+				uri: args.request.url,
+				ip: args.ip,
+				ips: args.ips,
+				headers: args.request.headers,
+				state: args.state,
+				date: args.date,
+				elapsed: now - args.date
+			};
+			json.requests[id] = info;
+		}
+		
+		this.logDebug(5, "Writing dump file: " + dump_file );
+		fs.writeFile( dump_file, JSON.stringify(json, null, "\t") + "\n", function(err) {
+			if (err) self.logError('dump', "Failed to write dump file: " + dump_file + ": " + err, err);
+			if (callback) callback(err);
 		} );
 	}
 	
@@ -244,7 +292,7 @@ class WebServer extends Component {
 		if (!stats.bytes_in) stats.bytes_in = 0;
 		if (!stats.bytes_out) stats.bytes_out = 0;
 		
-		['total', 'read', 'process', 'write'].forEach( function(key) {
+		['total', 'queue', 'read', 'filter', 'process', 'write'].forEach( function(key) {
 			if (!stats[key]) stats[key] = { "st": "mma", "min": 0, "max": 0, "total": 0, "count": 0 };
 		} );
 		

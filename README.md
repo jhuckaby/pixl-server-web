@@ -467,6 +467,18 @@ When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) 
 }
 ```
 
+## http_req_max_dump_enabled
+
+When this boolean is set to `true`, the [Request Max Dump](#request-max-dump) system is enabled.  This will produce a JSON dump file when the web server is maxed out on requests.
+
+## http_req_max_dump_dir
+
+When the [Request Max Dump](#request-max-dump) system is enabled, the `http_req_max_dump_dir` property sets the directory path where JSON dump files are dropped.  The directory will be created if needed.
+
+## http_req_max_dump_debounce
+
+When the [Request Max Dump](#request-max-dump) system is enabled, the `http_req_max_dump_debounce` property sets how many seconds should elapse between dumps, as to not overwhelm the filesystem.
+
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, and possibly `https_cert_file` and `https_key_file` for this to work.
@@ -987,31 +999,51 @@ The result is an object in this format:
 	"stats": {
 		"total": {
 			"st": "mma",
-			"min": 0.479,
-			"max": 2.57,
-			"total": 11.3748,
-			"count": 11
+			"min": 0.108,
+			"max": 19.964,
+			"total": 18719.696,
+			"count": 2997,
+			"avg": 6.246
+		},
+		"queue": {
+			"st": "mma",
+			"min": 3.707,
+			"max": 10.917,
+			"total": 8510.662,
+			"count": 1373,
+			"avg": 6.198
 		},
 		"read": {
 			"st": "mma",
-			"min": 0.005,
-			"max": 0.071,
-			"total": 0.170,
-			"count": 11
+			"min": 0,
+			"max": 0.134,
+			"total": 2.533,
+			"count": 1373,
+			"avg": 0.001
 		},
+		"filter": {
+			"st": "mma",
+			"min": 0,
+			"max": 0,
+			"total": 0,
+			"count": 0,
+			"avg": 0
+		}
 		"process": {
 			"st": "mma",
-			"min": 0.123,
-			"max": 0.625,
-			"total": 2.691,
-			"count": 11
+			"min": 0.834,
+			"max": 6.1,
+			"total": 3513.736,
+			"count": 1373,
+			"avg": 2.559
 		},
 		"write": {
 			"st": "mma",
-			"min": 0.313,
-			"max": 1.747,
-			"total": 7.679,
-			"count": 11
+			"min": 0.08,
+			"max": 8.85,
+			"total": 6523.865,
+			"count": 2997,
+			"avg": 2.176
 		},
 		"bytes_in": 0,
 		"bytes_out": 1175,
@@ -1110,7 +1142,9 @@ The `stats` object contains real-time performance metrics, representing one whol
 | Property | Type | Description |
 |----------|------|-------------|
 | `total` | Min/Max/Avg | Total request elapsed time. |
+| `queue` | Min/Max/Avg | Total request time in queue. |
 | `read` | Min/Max/Avg | Total request read time. |
+| `filter` | Min/Max/Avg | Total request filter time. |
 | `process` | Min/Max/Avg | Total request process time (i.e. custom URI handler). |
 | `write` | Min/Max/Avg | Total request write time. |
 | `bytes_in` | Simple Counter | Total bytes received in the last full second. |
@@ -1346,6 +1380,65 @@ Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily 
 ```
 
 Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
+
+## Request Max Dump
+
+For debugging and troubleshooting purposes, pixl-server-web can optionally generate a "dump" file when it reaches certain traffic limits.  Specifically, when one of these events occur:
+
+- When the [http_max_connections](#http_max_connections) limit is reached.
+- When the [http_max_queue_length](#http_max_queue_length) limit is reached.
+- When the [http_max_queue_active](#http_max_queue_active) limit is reached.
+
+To enable this feature, set the [http_req_max_dump_enabled](#http_req_max_dump_enabled) configuration property to `true`, the [http_req_max_dump_dir](#http_req_max_dump_dir) property to a path on your filesystem to hold your dump files (this will be created if needed), and [http_req_max_dump_debounce](#http_req_max_dump_debounce) to the maximum frequency you want files dumped (in seconds).  Example:
+
+```json
+"http_req_max_dump_enabled": true,
+"http_req_max_dump_dir": "/var/log/web-server-dumps",
+"http_req_max_dump_debounce": 10
+```
+
+This would generate dump files in the `/var/log/web-server-dumps` directory every 10 seconds, while one or more maximum limits are maxed out.
+
+The dump files themselves are in JSON format, and contain everything from the [Stats API](#stats), as well as a list of all active and pending requests.  For each request, the following information is dumped:
+
+```json
+"r2945": {
+	"uri": "/api/test/sleep?ms=1",
+	"ip": "127.0.0.1",
+	"ips": [
+		"127.0.0.1"
+	],
+	"headers": {
+		"accept-encoding": "gzip, deflate, br",
+		"user-agent": "Mozilla/5.0; wperf/1.0.4",
+		"host": "localhost:3012",
+		"connection": "keep-alive"
+	},
+	"state": "writing",
+	"date": 1644617758.688,
+	"elapsed": 0.009999990463256836
+}
+```
+
+Here is a description of each property:
+
+| Property Name | Type | Description |
+|---------------|------|-------------|
+| `uri` | String | The request URI path (sans protocol and hostname). |
+| `ip` | String | The client's public IP address (may be a load balancer or proxy). |
+| `ips` | All the client IPs as an array (includes those from proxy headers). |
+| `headers` | String | All the incoming HTTP request headers from the client (lower-cased keys). |
+| `state` | String | The state of the request, will be one of `queued`, `reading`, `filtering`, `processing` or `writing`. |
+| `date` | String | The timestamp of the start of the request, in Epoch seconds. |
+| `elapsed` | String | The elapsed time of the request in seconds. |
+
+Each dump file is given a unique filename using the current server hostname, the pixl-server-web process PID, and a high-resolution timestamp in [Base36](https://en.wikipedia.org/wiki/Base36) format.  Example:
+
+```
+req-dump-joemax.local-67463-kziyy7eq.json
+req-dump-joemax.local-67463-kziyy86i.json
+req-dump-joemax.local-67463-kziyy8yc.json
+```
 
 # License
 
