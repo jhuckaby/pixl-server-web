@@ -43,6 +43,9 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_clean_headers](#http_clean_headers)
 	* [http_log_socket_errors](#http_log_socket_errors)
 	* [http_full_uri_match](#http_full_uri_match)
+	* [http_req_max_dump_enabled](#http_req_max_dump_enabled)
+	* [http_req_max_dump_dir](#http_req_max_dump_dir)
+	* [http_req_max_dump_debounce](#http_req_max_dump_debounce)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_cert_file](#https_cert_file)
@@ -91,6 +94,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [Self-Referencing URLs](#self-referencing-urls)
 	* [Custom Method Handlers](#custom-method-handlers)
 	* [Let's Encrypt SSL Certificates](#lets-encrypt-ssl-certificates)
+	* [Request Max Dump](#request-max-dump)
 - [License](#license)
 
 # Usage
