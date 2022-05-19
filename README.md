@@ -19,6 +19,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_regex_text](#http_regex_text)
 	* [http_regex_json](#http_regex_json)
 	* [http_response_headers](#http_response_headers)
+	* [http_code_response_headers](#http_code_response_headers)
 	* [http_timeout](#http_timeout)
 	* [http_request_timeout](#http_request_timeout)
 	* [http_keep_alives](#http_keep_alives)
