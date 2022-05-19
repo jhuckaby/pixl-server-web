@@ -227,6 +227,34 @@ This param allows you to send back any additional custom HTTP headers with each 
 }
 ```
 
+## http_code_response_headers
+
+This property allows you to include *conditional* response headers, based on the HTTP response code.  For example, you can instruct the web server to send back a custom header with `404` (File Not Found) responses, like this:
+
+```js
+{
+	"http_code_response_headers": {
+		"404": {
+			"X-Message": "And don't come back!"
+		}
+	}
+}
+```
+
+An actual useful case would be to include a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After) header with all `429` (Too Many Requests) responses, like this:
+
+```js
+{
+	"http_code_response_headers": {
+		"429": {
+			"Retry-After": "10"
+		}
+	}
+}
+```
+
+This would give a hint to clients when they receive a `429` (Too Many Requests) response from the web server, that they should wait `10` seconds before trying again.
+
 ## http_timeout
 
 This sets the idle socket timeout for all incoming HTTP requests, in seconds.  If omitted, the Node.js default is 120 seconds.  Example:

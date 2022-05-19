@@ -1373,6 +1373,42 @@ module.exports = {
 			);
 		},
 		
+		function testConditionalResponseHeaders(test) {
+			// test response headers per http code
+			var self = this;
+			var web = this.web_server;
+			
+			web.config.set('http_code_response_headers', {
+				"403": { 'X-Test-Cond': "Tree Frogs" }
+			});
+			
+			request.get( 'http://127.0.0.1:3020/server-status', // ACL'ed endpoint
+				{
+					headers: {
+						"X-Forwarded-For": "1.2.3.4" // external IP
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 403, "Got 403 response: " + resp.statusCode );
+					test.ok( resp.headers['x-test-cond'] === "Tree Frogs", "Unexpected header: " + resp.headers['X-Test-Cond'] );
+					
+					// make sure basic 200 doesn't have header
+					request.json( 'http://127.0.0.1:3020/json', false, {}, 
+						function(err, resp, json, perf) {
+							test.ok( !err, "No error from PixlRequest: " + err );
+							test.ok( !!resp, "Got resp from PixlRequest" );
+							test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+							test.ok( !resp.headers['x-test-cond'], "Unexpected X-Test-Cond header for HTTP 200!" );
+							web.config.set('http_code_response_headers', null); // reset config
+							test.done();
+						}
+					);
+				} 
+			);
+		},
+		
 		// get stats
 		function testStats(test) {
 			// test stats API (this also tests ACL pass)
