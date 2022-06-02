@@ -1025,7 +1025,7 @@ If you only want to log *some* requests, but not all of them, you can specify a 
 
 ## Performance Threshold Logging
 
-In addition to [Transaction Logging](#transaction-logging), pixl-server-web can also log performance metrics for some requests, if the total request elapsed time meets or exceeds a custom threshold.  This allows you to log only "slow" requests, i.e. those possibly requiring investigation.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_perf](#http_log_perf) configuration property to `true`, and then set the [http_perf_threshold_ms](#http_perf_threshold_ms) property to the desired logging threshold in milliseconds.  Example:
+In addition to [Transaction Logging](#transaction-logging), pixl-server-web can also log performance metrics for certain requests, if the total request elapsed time meets or exceeds a custom threshold.  This allows you to log only "slow" requests, i.e. those possibly requiring investigation.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_perf](#http_log_perf) configuration property to `true`, and then set the [http_perf_threshold_ms](#http_perf_threshold_ms) property to the desired logging threshold in milliseconds.  Example:
 
 ```js
 {
@@ -1101,9 +1101,9 @@ Here are descriptions of the data JSON properties:
 
 The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
 
-The performance threshold log has another built-in feature.  It retroactively adjusts the log to represent the state of things at the *start* of the slow request.  Meaning, the `hires_epoch` and `date` columns are adjusted so that they represent the *start* of the request, not the end.  Furthermore, the `pending`, `running` and `sockets` counts in the data object also represent things at the start of the request, not the end.  The idea here is to help you diagnose what caused the slow request, so the log presents things *just before* the request happened.
+The performance threshold system retroactively adjusts the log to represent the state of things at the *start* of the slow request.  Meaning, the `hires_epoch` and `date` columns are adjusted so that they represent the *start* of the request, not the end.  Furthermore, the `pending`, `running` and `sockets` counts in the data object also represent things at the start of the request, not the end.  The idea here is to help you diagnose what caused the slow request, so the log presents certain things as they were *just before* the request happened.
 
-**Note:** When analyzing the performance log, make sure that you *presort the rows* by the `hires_epoch` column.  They will highly likely be out of order in the log file, because the logging actually happens at the end of the request, not the beginning.  For example, a long request that started first may be logged *after* a shorter request that started later it.
+**Note:** When analyzing your performance logs, make sure that you *presort the rows* by the `hires_epoch` column.  The reason is, they will likely be out of order in the log file, because the logging operation actually happens at the end of the request, not the beginning.  For example, a long request that started first may be logged *after* a shorter request that started later.
 
 ## Including Custom Metrics
 
