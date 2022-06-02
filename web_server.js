@@ -228,6 +228,9 @@ class WebServer extends Component {
 				date: args.date,
 				elapsed: now - args.date
 			};
+			if (args.request.socket && args.request.socket._pixl_data && args.request.socket._pixl_data.aborted) {
+				info.aborted = true;
+			}
 			json.requests[id] = info;
 		}
 		
