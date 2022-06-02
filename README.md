@@ -35,6 +35,8 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_default_acl](#http_default_acl)
 	* [http_log_requests](#http_log_requests)
 	* [http_regex_log](#http_regex_log)
+	* [http_log_perf](#http_log_perf)
+	* [http_perf_threshold_ms](#http_perf_threshold_ms)
 	* [http_recent_requests](#http_recent_requests)
 	* [http_max_connections](#http_max_connections)
 	* [http_max_concurrent_requests](#http_max_concurrent_requests)
@@ -80,7 +82,9 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 		+ [args.server](#argsserver)
 		+ [args.id](#argsid)
 	* [Request Filters](#request-filters)
-- [Logging](#logging)
+- [Transaction Logging](#transaction-logging)
+	* [Performance Threshold Logging](#performance-threshold-logging)
+	* [Including Custom Metrics](#including-custom-metrics)
 - [Stats](#stats)
 	* [The Server Object](#the-server-object)
 	* [The Stats Object](#the-stats-object)
@@ -88,7 +92,6 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [The Sockets Object](#the-sockets-object)
 	* [The Recent Object](#the-recent-object)
 	* [The Queue Object](#the-queue-object)
-	* [Including Custom Stats](#including-custom-stats)
 	* [Stats URI Handler](#stats-uri-handler)
 - [Misc](#misc)
 	* [Determining HTTP or HTTPS](#determining-http-or-https)
@@ -400,11 +403,19 @@ See [Access Control Lists](#access-control-lists) below for more details.
 
 ## http_log_requests
 
-This boolean allows you to enable transaction logging in the web server.  It defaults to `false`.  See [Logging](#logging) below.
+This boolean allows you to enable transaction logging in the web server.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
 
 ## http_regex_log
 
-If [http_log_requests](#http_log_requests) is enabled, this allows you to specify a regular expression to match against incoming request URIs.  Only if they match will the request be logged.  It defaults to match all URIs (`.+`).  See [Logging](#logging) below for details.
+If [http_log_requests](#http_log_requests) is enabled, this allows you to specify a regular expression to match against incoming request URIs.  Only requests that match will be logged.  It defaults to match all URIs (`.+`).  See [Transaction Logging](#transaction-logging) below for details.
+
+## http_log_perf
+
+This boolean allows you to enable performance threshold logging.  It defaults to `false` (disabled).  See [Performance Threshold Logging](#performance-threshold-logging) below for details.
+
+## http_perf_threshold_ms
+
+If [http_log_perf](#http_log_perf) is enabled, this allows you to specify the request elapsed time threshold in milliseconds.  All requests equal to or longer will be logged.  It defaults to `100` milliseconds.  See [Performance Threshold Logging](#performance-threshold-logging) below for details.
 
 ## http_recent_requests
 
@@ -887,7 +898,7 @@ var session_id = args.cookies['session_id'];
 
 ### args.perf
 
-This is a reference to a [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) object, which is used internally by the web server to track performance metrics for the request.  The metrics may be logged at the end of each request (see [Logging](#logging) below) and included in the stats (see [Stats](#stats) below).
+This is a reference to a [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) object, which is used internally by the web server to track performance metrics for the request.  The metrics may be logged at the end of each request (see [Transaction Logging](#transaction-logging) below) and included in the stats (see [Stats](#stats) below).
 
 ### args.server
 
@@ -942,12 +953,12 @@ This will intercept and abort all requests, sending back a `HTTP 418` error.
 
 To pass data between filters and potentially handlers, simply add properties into the `args` object.  This object is preserved for the lifetime of the request, and the same object reference is passed to all filters and handlers.  Just be careful of namespace collisions with existing properties in the object.  See [args](#args) above for details.
 
-# Logging
+# Transaction Logging
 
-In addition to the standard debug logging in pixl-server, the web server component can also log each request as a `transaction`.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_requests](#http_log_requests) configuration property to `true`.  The pixl-server log will then include a `transaction` row for every completed web request.  Example:
+In addition to the standard debug logging in [pixl-server](https://github.com/jhuckaby/pixl-server), the web server component can also log each request as a `transaction`.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_requests](#http_log_requests) configuration property to `true`.  The pixl-server log will then include a `transaction` row for every completed web request.  Example:
 
 ```
-[1466210619.37][2016/06/17 17:43:39][joeretina.local][WebServer][transaction][HTTP 200 OK][/server-status?pretty=1][{"proto":"http","ips":["::ffff:127.0.0.1"],"host":"127.0.0.1:3012","ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17","perf":{"scale":1000,"perf":{"total":10.266,"read":0.256,"process":1.077,"write":7.198},"counters":{"bytes_in":587,"bytes_out":431,"num_requests":1}}}]
+[1466210619.37][2016/06/17 17:43:39][joeretina.local][WebServer][transaction][HTTP 200 OK][/server-status?pretty=1][{"id":"r4","proto":"http","ips":["::ffff:127.0.0.1"],"host":"127.0.0.1:3012","ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17","perf":{"scale":1000,"perf":{"total":10.266,"read":0.256,"process":1.077,"write":7.198},"counters":{"bytes_in":587,"bytes_out":431,"num_requests":1}}}]
 ```
 
 The log columns are configurable in pixl-server, but are typically the following:
@@ -967,6 +978,7 @@ The `data` column is a JSON document containing various bits of additional infor
 
 ```js
 {
+	"id": "r4",
 	"proto": "http",
 	"ips": [
 		"::ffff:127.0.0.1"
@@ -994,6 +1006,7 @@ Here are descriptions of the data JSON properties:
 
 | Property | Description |
 |----------|-------------|
+| `id` | The internal ID for the request. |
 | `proto` | The protocol of the request (`http` or `https`). |
 | `ips` | All the client IPs as an array (includes those from proxy headers). |
 | `ua` | The `User-Agent` string from the request headers. |
@@ -1009,6 +1022,122 @@ If you only want to log *some* requests, but not all of them, you can specify a 
 	"http_regex_log": "^/my/special/path"
 }
 ```
+
+## Performance Threshold Logging
+
+In addition to [Transaction Logging](#transaction-logging), pixl-server-web can also log performance metrics for some requests, if the total request elapsed time meets or exceeds a custom threshold.  This allows you to log only "slow" requests, i.e. those possibly requiring investigation.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_perf](#http_log_perf) configuration property to `true`, and then set the [http_perf_threshold_ms](#http_perf_threshold_ms) property to the desired logging threshold in milliseconds.  Example:
+
+```js
+{
+	"http_log_perf": true,
+	"http_perf_threshold_ms": 100
+}
+```
+
+This would log all requests that took 100ms or longer.  Here is an example performance log row for such a request:
+
+```
+[1654144635.900786][2022-06-01 21:37:15][joemax.local][25638][WebServer][perf][200 OK][/sleep?ms=110][{"id":"r4","proto":"http","ips":["127.0.0.1"],"host":"localhost:3012","ua":"curl/7.79.1","perf":{"scale":1000,"perf":{"total":117.214,"queue":0.072,"read":0.018,"process":112.894,"write":3.467},"counters":{"bytes_in":90,"bytes_out":179,"num_requests":1}},"pending":0,"running":0,"sockets":1}]
+```
+
+The log columns are configurable in [pixl-server](https://github.com/jhuckaby/pixl-server), but are typically the following:
+
+| Column | Name | Description |
+|--------|------|-------------|
+| 1 | `hires_epoch` | Epoch date/time, including milliseconds (floating point).  This is retroactively adjusted to log the *start* of the request. |
+| 2 | `date` | Human-readable date/time, in the local server timezone.  This is retroactively adjusted to log the *start* of the request. |
+| 3 | `hostname` | The hostname of the server. |
+| 4 | `component` | The server component name (`WebServer`). |
+| 5 | `category` | The category of the log entry (`perf`). |
+| 6 | `code` | The HTTP response code and message, e.g. `200 OK`. |
+| 7 | `msg` | The URI of the request. |
+| 8 | `data` | A JSON document containing data about the request and performance metrics. |
+
+The `data` column is a JSON document containing various bits of additional information about the request, including the performance metrics.  Here is a formatted example:
+
+```js
+{
+	"id": "r4",
+	"proto": "http",
+	"ips": [
+		"127.0.0.1"
+	],
+	"host": "localhost:3012",
+	"ua": "curl/7.79.1",
+	"perf": {
+		"scale": 1000,
+		"perf": {
+			"total": 117.214,
+			"queue": 0.072,
+			"read": 0.018,
+			"process": 112.894,
+			"write": 3.467
+		},
+		"counters": {
+			"bytes_in": 90,
+			"bytes_out": 179,
+			"num_requests": 1
+		}
+	},
+	"pending": 0,
+	"running": 0,
+	"sockets": 1
+}
+```
+
+Here are descriptions of the data JSON properties:
+
+| Property | Description |
+|----------|-------------|
+| `id` | The internal ID for the request. |
+| `proto` | The protocol of the request (`http` or `https`). |
+| `ips` | All the client IPs as an array (includes those from proxy headers). |
+| `ua` | The `User-Agent` string from the request headers. |
+| `host` | The hostname from the request URL. |
+| `perf` | Performance metrics, see below. |
+| `pending` | The total number of pending requests in the queue, as captured at the *start* of the current request. |
+| `running` | The total number of running (active) requests being served, as captured at the *start* of the current request. |
+| `sockets` | The total number of connected sockets, as captured at the *start* of the current request. |
+
+The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
+
+The performance threshold log has another built-in feature.  It retroactively adjusts the log to represent the state of things at the *start* of the slow request.  Meaning, the `hires_epoch` and `date` columns are adjusted so that they represent the *start* of the request, not the end.  Furthermore, the `pending`, `running` and `sockets` counts in the data object also represent things at the start of the request, not the end.  The idea here is to help you diagnose what caused the slow request, so the log presents things *just before* the request happened.
+
+**Note:** When analyzing the performance log, make sure that you *presort the rows* by the `hires_epoch` column.  They will highly likely be out of order in the log file, because the logging actually happens at the end of the request, not the beginning.  For example, a long request that started first may be logged *after* a shorter request that started later it.
+
+## Including Custom Metrics
+
+To include your own application-level performance metrics in the logs and stats, a [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) performance tracker is made available to your URI handler code via `args.perf`.  You can call `begin()` and `end()` on this object directly, to measure your own operations:
+
+```js
+server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
+	// custom request handler for our URI
+	
+	args.perf.begin('db_query');
+	// Run DB query here
+	args.perf.end('db_query');
+	args.perf.count('my_counter', 1);
+	
+	callback( 
+		"200 OK", 
+		{ 'Content-Type': "text/html" }, 
+		"Hello this is custom content!\n" 
+	);
+} );
+```
+
+Please do not call `begin()` or `end()` without arguments, as that will mess up the existing performance tracking.  Also, make sure you prefix your perf keys so you don't collide with the built-in ones.
+
+Alternatively, if you already use your own private [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) object in your app, you can "import" it into the `args.perf` object at the very end of your handler code, just before you fire the request callback.  Example:
+
+```js
+my_perf.end();
+args.perf.import( my_perf, "app_" );
+```
+
+This would import all your metrics and prefix the keys with `app_`.
+
+See the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) documentation for more details on how to use the tracker.
 
 # Stats
 
@@ -1189,7 +1318,7 @@ The object consists of both simple counters, and min/max/avg objects.  The latte
 
 The min/max/avg objects are all tagged with an `st` (stat type) key set to `mma` (min/max/avg).  This is simply an identifier for libraries wanting to display or graph the data.
 
-If you add any of your own app's performance metrics via `args.perf`, they will be included in this object as well.  See [Including Custom Stats](#including-custom-stats) below for details.
+If you add any of your own app's performance metrics via `args.perf`, they will be included in this object as well.  See [Including Custom Metrics](#including-custom-metrics) below for details.
 
 ## The Listeners Object
 
@@ -1248,40 +1377,6 @@ The `queue` object contains information about the request queue.  This includes 
 |----------|------|-------------|
 | `pending` | Integer | The number of requests queued, waiting for processing.  Only used if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero. |
 | `running` | Integer | The number of active requests currently being processed in parallel. |
-
-## Including Custom Stats
-
-To include your own application-level metrics in the `getStats()` output, a [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) performance tracker is made available to your URI handler code via `args.perf`.  you can call `begin()` and `end()` on this object directly, to measure your own operations:
-
-```js
-server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
-	// custom request handler for our URI
-	
-	args.perf.begin('db_query');
-	// Run DB query here
-	args.perf.end('db_query');
-	args.perf.count('my_counter', 1);
-	
-	callback( 
-		"200 OK", 
-		{ 'Content-Type': "text/html" }, 
-		"Hello this is custom content!\n" 
-	);
-} );
-```
-
-Please do not call `begin()` or `end()` without arguments, as that will mess up the existing performance tracking.  Also, make sure you prefix your perf keys so you don't collide with the built-in ones.
-
-Alternatively, you can use your own private [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) object, and then "import" it into the `args.perf` object at the very end of your handler code, just before you fire the callback.  Example:
-
-```js
-my_perf.end();
-args.perf.import( my_perf, "app_" );
-```
-
-This would import all your metrics and prefix the keys with `app_`.
-
-See the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) documentation for more details on how to use the tracker.
 
 ## Stats URI Handler
 

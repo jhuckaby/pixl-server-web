@@ -47,6 +47,8 @@ module.exports = Class({
 		"http_enable_brotli": false,
 		"http_default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		"http_log_requests": false,
+		"http_log_perf": false,
+		"http_perf_threshold_ms": 100,
 		"http_recent_requests": 10,
 		"http_max_connections": 0,
 		"http_max_requests_per_connection": 0,
@@ -99,6 +101,8 @@ class WebServer extends Component {
 		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
 		this.logRequests = this.config.get('http_log_requests');
 		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('http_regex_log') || '.+' )) : null;
+		this.logPerfEnabled = this.config.get('http_log_perf');
+		this.logPerfThreshold = this.config.get('http_perf_threshold_ms');
 		this.keepRecentRequests = this.config.get('http_recent_requests');
 		this.stats = { current: {}, last: {} };
 		this.recent = [];
