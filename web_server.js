@@ -49,6 +49,7 @@ module.exports = Class({
 		"http_log_requests": false,
 		"http_log_perf": false,
 		"http_perf_threshold_ms": 100,
+		"http_perf_report": false,
 		"http_recent_requests": 10,
 		"http_max_connections": 0,
 		"http_max_requests_per_connection": 0,
@@ -103,6 +104,7 @@ class WebServer extends Component {
 		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('http_regex_log') || '.+' )) : null;
 		this.logPerfEnabled = this.config.get('http_log_perf');
 		this.logPerfThreshold = this.config.get('http_perf_threshold_ms');
+		this.logPerfReport = this.config.get('http_perf_report');
 		this.keepRecentRequests = this.config.get('http_recent_requests');
 		this.stats = { current: {}, last: {} };
 		this.recent = [];
@@ -301,7 +303,7 @@ class WebServer extends Component {
 		if (!stats.bytes_in) stats.bytes_in = 0;
 		if (!stats.bytes_out) stats.bytes_out = 0;
 		
-		['total', 'queue', 'read', 'filter', 'process', 'write'].forEach( function(key) {
+		['total', 'queue', 'read', 'filter', 'process', 'encode', 'write'].forEach( function(key) {
 			if (!stats[key]) stats[key] = { "st": "mma", "min": 0, "max": 0, "total": 0, "count": 0 };
 		} );
 		

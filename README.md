@@ -37,6 +37,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_regex_log](#http_regex_log)
 	* [http_log_perf](#http_log_perf)
 	* [http_perf_threshold_ms](#http_perf_threshold_ms)
+	* [http_perf_report](#http_perf_report)
 	* [http_recent_requests](#http_recent_requests)
 	* [http_max_connections](#http_max_connections)
 	* [http_max_concurrent_requests](#http_max_concurrent_requests)
@@ -84,6 +85,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [Request Filters](#request-filters)
 - [Transaction Logging](#transaction-logging)
 	* [Performance Threshold Logging](#performance-threshold-logging)
+		+ [Including Diagnostic Reports](#including-diagnostic-reports)
 	* [Including Custom Metrics](#including-custom-metrics)
 - [Stats](#stats)
 	* [The Server Object](#the-server-object)
@@ -416,6 +418,10 @@ This boolean allows you to enable performance threshold logging.  It defaults to
 ## http_perf_threshold_ms
 
 If [http_log_perf](#http_log_perf) is enabled, this allows you to specify the request elapsed time threshold in milliseconds.  All requests equal to or longer will be logged.  It defaults to `100` milliseconds.  See [Performance Threshold Logging](#performance-threshold-logging) below for details.
+
+## http_perf_report
+
+This property allows you to include a complete or partial [Node.js Diagnostic Report](https://nodejs.org/docs/latest/api/report.html) in your [Performance Threshold Log](#performance-threshold-logging).  Specifically, you can set this to an array of report keys to include in the log data.  See [Including Diagnostic Reports](#including-diagnostic-reports) below for details.
 
 ## http_recent_requests
 
@@ -1104,6 +1110,30 @@ The `perf` object contains performance metrics for the request, as returned from
 The performance threshold system retroactively adjusts the log to represent the state of things at the *start* of the slow request.  Meaning, the `hires_epoch` and `date` columns are adjusted so that they represent the *start* of the request, not the end.  Furthermore, the `pending`, `running` and `sockets` counts in the data object also represent things at the start of the request, not the end.  The idea here is to help you diagnose what caused the slow request, so the log presents certain things as they were *just before* the request happened.
 
 **Note:** When analyzing your performance logs, make sure that you *presort the rows* by the `hires_epoch` column.  The reason is, they will likely be out of order in the log file, because the logging operation actually happens at the end of the request, not the beginning.  For example, a long request that started first may be logged *after* a shorter request that started later.
+
+### Including Diagnostic Reports
+
+To include a partial or complete [Node.js Diagnostic Report](https://nodejs.org/docs/latest/api/report.html) in your performance log data, set the [http_perf_report](#http_perf_report) configuration property.  For a full report, set it to `true`:
+
+```js
+{
+	"http_perf_report": true
+}
+```
+
+However, please note that this is *very* verbose.  For a partial report, you can set it to an array of report keys to include.  Example:
+
+```js
+{
+	"http_perf_report": ["uvthreadResourceUsage"]
+}
+```
+
+Example log entry with a partial report included:
+
+```
+[1654217763.817487][2022-06-02 17:56:03][joemax.local][27616][WebServer][perf][200 OK][/sleep?ms=110][{"id":"r2","proto":"http","ips":["127.0.0.1"],"host":"localhost:3012","ua":"curl/7.79.1","perf":{"scale":1000,"perf":{"total":117.513,"queue":0.615,"read":0.021,"process":111.677,"write":2.996},"counters":{"bytes_in":90,"bytes_out":179,"num_requests":1}},"pending":0,"running":0,"sockets":1,"report":{"uvthreadResourceUsage":{"userCpuSeconds":0.081054,"kernelCpuSeconds":0.016156,"cpuConsumptionPercent":3.24033,"maxRss":46305116160,"pageFaults":{"IORequired":1,"IONotRequired":3365},"fsActivity":{"reads":0,"writes":0}}}}]
+```
 
 ## Including Custom Metrics
 
