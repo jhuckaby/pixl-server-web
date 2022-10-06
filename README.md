@@ -50,6 +50,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_req_max_dump_enabled](#http_req_max_dump_enabled)
 	* [http_req_max_dump_dir](#http_req_max_dump_dir)
 	* [http_req_max_dump_debounce](#http_req_max_dump_debounce)
+	* [http_public_ip_offset](#http_public_ip_offset)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_cert_file](#https_cert_file)
@@ -528,6 +529,19 @@ When the [Request Max Dump](#request-max-dump) system is enabled, the `http_req_
 ## http_req_max_dump_debounce
 
 When the [Request Max Dump](#request-max-dump) system is enabled, the `http_req_max_dump_debounce` property sets how many seconds should elapse between dumps, as to not overwhelm the filesystem.
+
+## http_public_ip_offset
+
+This controls how [args.ip](#argsip) is chosen from the list of IP addresses in [args.ips](#argsips) for each incoming request.  By default, the client IP is chosen by scanning the list from left to right, and selecting the first non-private IP.  However, [modern wisdom](https://adam-p.ca/blog/2022/03/x-forwarded-for/) suggests that alternate selection logic may be more desirable to find the true public IP.
+
+By setting `http_public_ip_offset` to an integer value, you can select *exactly* which IP to select from the list.  Use negative numbers to select IP address from the *end* (right side) of the list.  Here are the recommended values:
+
+| Offset | Description |
+|--------|-------------|
+| `0` | The default value.  Allow the server to select the public IP automatically. |
+| `-1` | Always select the *last* IP in the list (i.e. the TCP socket IP).  Use this mode if your server is connected to the internet directly. |
+| `-2` | Always select the *second-to-last* IP in the list.  Use this mode if you have a single proxy device in front of your server (e.g. a load balancer). |
+| `-3` | Always select the *third-to-last* IP in the list.  Use this mode if you have two proxy devices in front of your server (e.g. a load balancer and CDN / cache). |
 
 ## https
 

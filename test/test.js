@@ -1339,6 +1339,71 @@ module.exports = {
 			);
 		},
 		
+		// http_public_ip_offset
+		function testForwardedForOffsetNeg1(test) {
+			var self = this;
+			var web = this.web_server;
+			web.config.set('http_public_ip_offset', -1);
+			
+			request.json( 'http://127.0.0.1:3020/json', false, 
+				{
+					headers: {
+						"X-Forwarded-For": "1.2.3.4, 2.3.4.5, 3.4.5.6"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( data.ip === "127.0.0.1", "Correct offset public IP in response: " + data.ip );
+					web.config.set('http_public_ip_offset', 0); // reset
+					test.done();
+				} 
+			);
+		},
+		function testForwardedForOffsetNeg2(test) {
+			var self = this;
+			var web = this.web_server;
+			web.config.set('http_public_ip_offset', -2);
+			
+			request.json( 'http://127.0.0.1:3020/json', false, 
+				{
+					headers: {
+						"X-Forwarded-For": "1.2.3.4, 2.3.4.5, 3.4.5.6"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( data.ip === "3.4.5.6", "Correct offset public IP in response: " + data.ip );
+					web.config.set('http_public_ip_offset', 0); // reset
+					test.done();
+				} 
+			);
+		},
+		function testForwardedForOffsetNeg3(test) {
+			var self = this;
+			var web = this.web_server;
+			web.config.set('http_public_ip_offset', -3);
+			
+			request.json( 'http://127.0.0.1:3020/json', false, 
+				{
+					headers: {
+						"X-Forwarded-For": "1.2.3.4, 2.3.4.5, 3.4.5.6"
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( data.ip === "2.3.4.5", "Correct offset public IP in response: " + data.ip );
+					web.config.set('http_public_ip_offset', 0); // reset
+					test.done();
+				} 
+			);
+		},
+		
 		// acl block
 		function testACL(test) {
 			request.get( 'http://127.0.0.1:3020/server-status', // ACL'ed endpoint

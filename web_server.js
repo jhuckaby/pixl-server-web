@@ -366,13 +366,22 @@ class WebServer extends Component {
 	
 	getPublicIP(ips) {
 		// filter out garbage that doesn't resemble ips
+		var public_ip_offset = this.config.get('http_public_ip_offset') || 0;
+		
 		var real_ips = ips.filter( function(ip) {
 			return ip.match( /^([\d\.]+|[a-f0-9:]+)$/ );
 		} );
 		
-		// determine first public IP from list of IPs
-		for (var idx = 0, len = real_ips.length; idx < len; idx++) {
-			if (!this.aclPrivateRanges.check(real_ips[idx])) return real_ips[idx];
+		if (public_ip_offset) {
+			// locate public IP using custom offset (usually negative, from end of list)
+			var temp = real_ips.slice( public_ip_offset, public_ip_offset + 1 || real_ips.length );
+			if (temp[0]) return temp[0];
+		}
+		else {
+			// determine first public IP from list of IPs
+			for (var idx = 0, len = real_ips.length; idx < len; idx++) {
+				if (!this.aclPrivateRanges.check(real_ips[idx])) return real_ips[idx];
+			}
 		}
 		
 		// default to first ip
