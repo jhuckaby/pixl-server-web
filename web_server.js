@@ -61,12 +61,11 @@ module.exports = Class({
 		"http_log_socket_errors": true,
 		"http_full_uri_match": false,
 		"http_request_timeout": 0,
-		
 		"http_req_max_dump_enabled": false,
 		"http_req_max_dump_dir": "",
 		"http_req_max_dump_debounce": 10,
-		
-		"http_code_response_headers": null
+		"http_code_response_headers": null,
+		"http_legacy_callback_support": true
 	},
 	
 	conns: null,
