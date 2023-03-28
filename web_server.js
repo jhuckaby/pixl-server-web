@@ -313,13 +313,19 @@ class WebServer extends Component {
 			}
 		}
 		
+		var ports = [ this.config.get('http_port') ];
+		if (this.config.get('https')) {
+			ports.push( this.config.get('https_port') );
+		}
+		
 		return {
 			server: {
 				uptime_sec: Math.floor(now / 1000) - this.server.started,
 				hostname: this.server.hostname,
 				ip: this.server.ip,
 				name: this.server.__name,
-				version: this.server.__version
+				version: this.server.__version,
+				ports: ports
 			},
 			stats: stats,
 			listeners: listener_info,
