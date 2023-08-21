@@ -47,6 +47,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_clean_headers](#http_clean_headers)
 	* [http_log_socket_errors](#http_log_socket_errors)
 	* [http_full_uri_match](#http_full_uri_match)
+	* [http_flatten_query](#http_flatten_query)
 	* [http_req_max_dump_enabled](#http_req_max_dump_enabled)
 	* [http_req_max_dump_dir](#http_req_max_dump_dir)
 	* [http_req_max_dump_debounce](#http_req_max_dump_debounce)
