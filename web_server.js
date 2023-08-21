@@ -60,6 +60,7 @@ module.exports = Class({
 		"http_clean_headers": false,
 		"http_log_socket_errors": true,
 		"http_full_uri_match": false,
+		"http_flatten_query": false,
 		"http_request_timeout": 0,
 		"http_req_max_dump_enabled": false,
 		"http_req_max_dump_dir": "",

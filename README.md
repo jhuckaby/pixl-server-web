@@ -518,6 +518,26 @@ When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) 
 }
 ```
 
+## http_flatten_query
+
+By default, we use the Node.js core [Query String](https://nodejs.org/api/querystring.html) module to parse query strings.  This module handles duplicate query params by converting them to arrays.  For example, an incoming URI such as `/something?foo=bar1&foo=bar2&name=joe` would produce the following `args.query` object:
+
+```js
+{
+	"foo": ["bar1", "bar2"],
+	"name": "joe"
+}
+```
+
+However, if you set `http_flatten_query` to `true` in your configuration, the web server will "flatten" query string parameters, so that duplicate keys will be combined into one, with the latter prevailing.  Example:
+
+```js
+{
+	"foo": "bar2",
+	"name": "joe"
+}
+```
+
 ## http_req_max_dump_enabled
 
 When this boolean is set to `true`, the [Request Max Dump](#request-max-dump) system is enabled.  This will produce a JSON dump file when the web server is maxed out on requests.
@@ -875,6 +895,8 @@ Duplicate query params become an array.  For example, an incoming URI such as `/
 	"name": "joe"
 }
 ```
+
+See [http_flatten_query](#http_flatten_query) if you would rather the query string be flattened.
 
 ### args.params
 

@@ -208,7 +208,7 @@ module.exports = {
 		// query string
 		function testQueryString(test) {
 			// test simple HTTP GET request with query string
-			request.json( 'http://127.0.0.1:3020/json?foo=bar1234&baz=bop%20pog', false,
+			request.json( 'http://127.0.0.1:3020/json?foo=bar1234&baz=bop%20pog&animal=frog&animal=dog', false,
 				{
 					headers: {
 						'X-Test': "Test"
@@ -228,9 +228,55 @@ module.exports = {
 					test.ok( json.query.foo == "bar1234", "Query contains correct foo key" );
 					test.ok( json.query.baz == "bop pog", "Query contains correct baz key (URL encoding)" );
 					
+					// dupes should become array by default
+					test.ok( typeof(json.query.animal) == 'object', "Query param animal is an object" );
+					test.ok( json.query.animal.length == 2, "Query param animal has length 2" );
+					test.ok( json.query.animal[0] === 'frog', "First animal is frog" );
+					test.ok( json.query.animal[1] === 'dog', "Second animal is dog" );
+					
 					// request headers will be echoed back
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testQueryStringFlatten(test) {
+			// test simple HTTP GET request with query string dupes flattened
+			var web = this.web_server;
+			web.config.set('http_flatten_query', true);
+			
+			request.json( 'http://127.0.0.1:3020/json?foo=bar1234&baz=bop%20pog&animal=frog&animal=dog', false,
+				{
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					test.ok( !!json.query, "Found query object in JSON response" );
+					test.ok( json.query.foo == "bar1234", "Query contains correct foo key" );
+					test.ok( json.query.baz == "bop pog", "Query contains correct baz key (URL encoding)" );
+					
+					test.ok( typeof(json.query.animal) == 'string', "Query param animal is a string" );
+					test.ok( json.query.animal === 'dog', "Animal is dog" );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					// revert our hot config change
+					web.config.set('http_flatten_query', false);
 					
 					test.done();
 				} 
