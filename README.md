@@ -8,6 +8,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 - [Usage](#usage)
 - [Configuration](#configuration)
 	* [http_port](#http_port)
+	* [http_alt_ports](#http_alt_ports)
 	* [http_bind_address](#http_bind_address)
 	* [http_htdocs_dir](#http_htdocs_dir)
 	* [http_max_upload_size](#http_max_upload_size)
@@ -54,6 +55,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_public_ip_offset](#http_public_ip_offset)
 	* [https](#https)
 	* [https_port](#https_port)
+	* [https_alt_ports](#https_alt_ports)
 	* [https_cert_file](#https_cert_file)
 	* [https_key_file](#https_key_file)
 	* [https_ca_file](#https_ca_file)
@@ -168,11 +170,22 @@ The configuration for this component is set by passing in a `WebServer` key in t
 
 ## http_port
 
-This is the port to listen on.  The standard web port is 80, but note that only the root user can listen on ports below 1024.
+This is the main port to listen on.  The standard web port is 80, but note that only the root user can listen on ports below 1024.
+
+## http_alt_ports
+
+If you would like to have the server listen on additional ports, add them here as an array.  Example:
+
+```js
+{
+	"http_port": 80,
+	"http_alt_ports": [ 3000, 8080 ]
+}
+```
 
 ## http_bind_address
 
-Optionally specify an exact local IP address to bind the listener to.  By default this binds to all available addresses on the machine.  Example:
+Optionally specify an exact local IP address to bind the listeners to.  By default this binds to all available addresses on the machine.  Example:
 
 ```js
 {
@@ -571,6 +584,17 @@ This boolean allows you to enable HTTPS (SSL) support in the web server.  It def
 ## https_port
 
 If HTTPS mode is enabled, this is the port to listen on for secure requests.  The standard HTTPS port is 443.
+
+## https_alt_ports
+
+If you would like to have the server listen on additional HTTPS ports, add them here as an array.  Example:
+
+```js
+{
+	"https_port": 443,
+	"https_alt_ports": [ 9000, 9001 ]
+}
+```
 
 ## https_cert_file
 

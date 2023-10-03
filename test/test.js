@@ -33,6 +33,7 @@ var server = new PixlServer({
 		
 		"WebServer": {
 			"http_port": 3020,
+			"http_alt_ports": [3120],
 			"http_htdocs_dir": __dirname,
 			"http_max_upload_size": 1024 * 10,
 			"http_static_ttl": 3600,
@@ -53,6 +54,7 @@ var server = new PixlServer({
 			
 			"https": 1,
 			"https_port": 3021,
+			"https_alt_ports": [3121],
 			"https_cert_file": "ssl.crt",
 			"https_key_file": "ssl.key",
 			"https_force": 0,
@@ -167,6 +169,33 @@ module.exports = {
 		function testSimpleRequest(test) {
 			// test simple HTTP GET request to webserver backend
 			request.json( 'http://127.0.0.1:3020/json', false,
+				{
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testHTTPAltPort(test) {
+			// test simple HTTP GET request to webserver backend, alternate port
+			request.json( 'http://127.0.0.1:3120/json', false,
 				{
 					headers: {
 						'X-Test': "Test"
@@ -1550,6 +1579,35 @@ module.exports = {
 		function testHTTPSRequest(test) {
 			// test HTTPS GET request to webserver backend
 			request.json( 'https://127.0.0.1:3021/json', false,
+				{
+					rejectUnauthorized: false, // self-signed cert
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					test.ok( !!json.headers.ssl, "SSL pseudo-header present in echo" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testHTTPSAltPort(test) {
+			// test HTTPS GET request to webserver backend on alt port
+			request.json( 'https://127.0.0.1:3121/json', false,
 				{
 					rejectUnauthorized: false, // self-signed cert
 					headers: {

@@ -91,6 +91,7 @@ class WebServer extends Component {
 		this.logDebug(2, "pixl-server-web v" + this.version + " starting up");
 		
 		// setup connections and handlers
+		this.listeners = [];
 		this.conns = {};
 		this.requests = {};
 		this.uriFilters = [];
@@ -194,16 +195,41 @@ class WebServer extends Component {
 		// listen for tick events to swap stat buffers
 		this.server.on( 'tick', this.tick.bind(this) );
 		
-		// start listeners
-		this.startHTTP( function(err) {
-			if (err) return callback(err);
-			
-			// also start HTTPS listener?
-			if (self.config.get('https')) {
-				self.startHTTPS( callback );
-			}
-			else callback(err);
+		this.startAll(callback);
+	}
+	
+	startAll(callback) {
+		// start all HTTP(s) listeners
+		var self = this;
+		var tasks = [];
+		
+		// always start plain HTTP on base port
+		tasks.push([ this.config.get('http_port'), 'startHTTP' ]);
+		
+		// optional additional ports
+		(this.config.get('http_alt_ports') || []).forEach( function(port) {
+			tasks.push([ port, 'startHTTP' ]);
 		} );
+		
+		// optional HTTPS
+		if (this.config.get('https')) {
+			tasks.push([ this.config.get('https_port'), 'startHTTPS' ]);
+			
+			// optional additional ports
+			(this.config.get('https_alt_ports') || []).forEach( function(port) {
+				tasks.push([ port, 'startHTTPS' ]);
+			} );
+		}
+		
+		// start all listeners in parallel
+		async.each( tasks,
+			function(task, callback) {
+				var port = task[0];
+				var func = task[1];
+				self[func](port, callback);
+			},
+			callback
+		);
 	}
 	
 	dumpAllRequests(callback) {
@@ -263,12 +289,13 @@ class WebServer extends Component {
 	getStats() {
 		// get current stats, merged with live socket and request info
 		var socket_info = {};
-		var listener_info = {};
+		var listener_info = [];
 		var now = (new Date()).getTime();
 		var num_sockets = 0;
 		
-		if (this.http) listener_info.http = this.http.address();
-		if (this.https) listener_info.https = this.https.address();
+		listener_info = this.listeners.map( function(listener) {
+			return listener.address();
+		} );
 		
 		for (var key in this.conns) {
 			var socket = this.conns[key];
@@ -432,7 +459,7 @@ class WebServer extends Component {
 		// shutdown http server
 		var self = this;
 		
-		if (this.http) {
+		if (this.listeners.length) {
 			this.logDebug(2, "Shutting down HTTP server");
 			
 			for (var id in this.requests) {
@@ -461,12 +488,11 @@ class WebServer extends Component {
 				this.numConns--;
 			} // foreach conn
 			
-			this.http.close( function() { self.logDebug(3, "HTTP server has shut down."); } );
-			
-			if (this.https) {
-				this.https.close( function() { self.logDebug(3, "HTTPS server has shut down."); } );
-			}
-			// delete this.http;
+			// close all listeners
+			this.listeners.forEach( function(listener) {
+				var info = listener.address() || { port: 'n/a' };
+				listener.close( function() { self.logDebug(3, "HTTP server on port " + info.port + " has shut down.", info); } );
+			} );
 			
 			this.requests = {};
 			this.queue.kill();
