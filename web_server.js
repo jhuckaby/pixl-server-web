@@ -232,12 +232,13 @@ class WebServer extends Component {
 		);
 	}
 	
-	dumpAllRequests(callback) {
+	dumpAllRequests() {
 		// create dump file containing info on all active/pending requests
 		// this is called when requests or sockets are maxed out
 		// only write file every N seconds
 		var self = this;
 		var now = Date.now() / 1000;
+		if (!this.reqMaxDumpEnabled) return;
 		if (now - this.reqMaxDumpLast < this.reqMaxDumpDebounce) return;
 		this.reqMaxDumpLast = now;
 		
@@ -265,7 +266,6 @@ class WebServer extends Component {
 		this.logDebug(5, "Writing dump file: " + dump_file );
 		fs.writeFile( dump_file, JSON.stringify(json, null, "\t") + "\n", function(err) {
 			if (err) self.logError('dump', "Failed to write dump file: " + dump_file + ": " + err, err);
-			if (callback) callback(err);
 		} );
 	}
 	
