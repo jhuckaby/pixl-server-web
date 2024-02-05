@@ -111,26 +111,26 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 
 Use [npm](https://www.npmjs.com/) to install the module:
 
-```
+```sh
 npm install pixl-server pixl-server-web
 ```
 
 Here is a simple usage example.  Note that the component's official name is `WebServer`, so that is what you should use for the configuration key, and for gaining access to the component via your server object.
 
 ```js
-var PixlServer = require('pixl-server');
-var server = new PixlServer({
+const PixlServer = require('pixl-server');
+let server = new PixlServer({
 	
 	__name: 'MyServer',
 	__version: "1.0",
 	
 	config: {
-		"log_dir": "/var/log",
+		"log_dir": "/let/log",
 		"debug_level": 9,
 		
 		"WebServer": {
 			"http_port": 80,
-			"http_htdocs_dir": "/var/www/html"
+			"http_htdocs_dir": "/let/www/html"
 		}
 	},
 	
@@ -162,7 +162,7 @@ components: [
 ]
 ```
 
-This example is a very simple web server configuration, which will listen on port 80 and serve static files out of `/var/www/html`.  However, if the URI is `/my/custom/uri`, a custom callback function is fired and can serve up any response it wants.  This is a great way to implement an API.
+This example is a very simple web server configuration, which will listen on port 80 and serve static files out of `/let/www/html`.  However, if the URI is `/my/custom/uri`, a custom callback function is fired and can serve up any response it wants.  This is a great way to implement an API.
 
 # Configuration
 
@@ -176,7 +176,7 @@ This is the main port to listen on.  The standard web port is 80, but note that 
 
 If you would like to have the server listen on additional ports, add them here as an array.  Example:
 
-```js
+```json
 {
 	"http_port": 80,
 	"http_alt_ports": [ 3000, 8080 ]
@@ -187,7 +187,7 @@ If you would like to have the server listen on additional ports, add them here a
 
 Optionally specify an exact local IP address to bind the listeners to.  By default this binds to all available addresses on the machine.  Example:
 
-```js
+```json
 {
 	"http_bind_address": "127.0.0.1"
 }
@@ -197,7 +197,7 @@ This example would cause the server to *only* listen on localhost, and not any e
 
 ## http_htdocs_dir
 
-This is the path to the directory to serve static files out of, e.g. `/var/www/html`.
+This is the path to the directory to serve static files out of, e.g. `/let/www/html`.
 
 ## http_max_upload_size
 
@@ -239,7 +239,7 @@ This is a regular expression string used to determine if the incoming POST reque
 
 This param allows you to send back any additional custom HTTP headers with each response.  Set the param to an object containing keys for each header, like this:
 
-```js
+```json
 {
 	"http_response_headers": {
 		"X-My-Custom-Header": "12345",
@@ -252,7 +252,7 @@ This param allows you to send back any additional custom HTTP headers with each 
 
 This property allows you to include *conditional* response headers, based on the HTTP response code.  For example, you can instruct the web server to send back a custom header with `404` (File Not Found) responses, like this:
 
-```js
+```json
 {
 	"http_code_response_headers": {
 		"404": {
@@ -264,7 +264,7 @@ This property allows you to include *conditional* response headers, based on the
 
 An actual useful case would be to include a [Retry-After](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After) header with all `429` (Too Many Requests) responses, like this:
 
-```js
+```json
 {
 	"http_code_response_headers": {
 		"429": {
@@ -280,7 +280,7 @@ This would give a hint to clients when they receive a `429` (Too Many Requests) 
 
 This sets the idle socket timeout for all incoming HTTP requests, in seconds.  If omitted, the Node.js default is 120 seconds.  Example:
 
-```js
+```json
 {
 	"http_timeout": 120
 }
@@ -292,7 +292,7 @@ This only applies to reading from sockets when data is expected.  It is an *idle
 
 This property sets an actual hard request timeout for all incoming requests.  If the total combined request processing, handling and response time exceeds this value, specified in seconds, then the request is aborted and a `HTTP 408 Request Timeout` response is sent back to the client.  This defaults to `0` (disabled).  Example use:
 
-```js
+```json
 {
 	"http_request_timeout": 300
 }
@@ -306,7 +306,7 @@ This controls the [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persisten
 
 ### default
 
-```js
+```json
 {
 	"http_keep_alives": "default"
 }
@@ -316,7 +316,7 @@ This **enables** Keep-Alives for all incoming connections by default, unless the
 
 ### request
 
-```js
+```json
 {
 	"http_keep_alives": "request"
 }
@@ -326,7 +326,7 @@ This **disables** Keep-Alives for all incoming connections by default, unless th
 
 ### close
 
-```js
+```json
 {
 	"http_keep_alives": "close"
 }
@@ -336,9 +336,9 @@ This completely disables Keep-Alives for all connections.  All requests result i
 
 ## http_keep_alive_timeout
 
-This sets the HTTP Keep-Alive idle timeout for all sockets, measured in seconds.  If omitted, the Node.js default is 5 seconds.  See [server.keepAliveTimeout](https://nodejs.org/api/http.html#http_server_keepalivetimeout) for details.  Example:
+This sets the HTTP Keep-Alive idle timeout for all sockets, measured in seconds.  If omitted, the Node.js default is 5 seconds.  See [server.keepAliveTimeout](https://nodejs.org/api/http.html#serverkeepalivetimeout) for details.  Example:
 
-```js
+```json
 {
 	"http_keep_alive_timeout": 5
 }
@@ -348,7 +348,7 @@ This sets the HTTP Keep-Alive idle timeout for all sockets, measured in seconds.
 
 This sets a special preliminary timeout for brand new sockets when they are first connected, measured in seconds.  If an HTTP request doesn't come over the socket within this timeout (specified in seconds), then the socket is hard closed.  This timeout should always be set lower than the [http_timeout](#http_timeout) if used.  This defaults to `0` (disabled).  Example use:
 
-```js
+```json
 {
 	"http_socket_prelim_timeout": 3
 }
@@ -362,7 +362,7 @@ The idea here is to prevent certain DDoS-style attacks, where an attacker opens 
 
 This allows you to set a maximum number of requests to allow per Keep-Alive connection.  It defaults to `0` which means unlimited.  If set, and the maximum is reached, a `Connection: close` header is returned, politely asking the client to close the connection.  It does not actually hard-close the socket.  Example:
 
-```js
+```json
 {
 	"http_max_requests_per_connection": 100
 }
@@ -372,16 +372,16 @@ This allows you to set a maximum number of requests to allow per Keep-Alive conn
 
 This allows you to set various options for the automatic GZip compression in HTTP responses.  Example:
 
-```js
+```json
 {
-	http_gzip_opts: {
-		level: 6,
-		memLevel: 8
+	"http_gzip_opts": {
+		"level": 6,
+		"memLevel": 8
 	}
 }
 ```
 
-Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#zlib_class_options) for more details on what can be set here.
+Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#class-options) for more details on what can be set here.
 
 ## http_enable_brotli
 
@@ -393,26 +393,26 @@ Brotli is a newer compression format written by Google, which was added to Node.
 
 If [http_enable_brotli](#http_enable_brotli) is set to `true`, then you can set various options via the `http_brotli_opts` configuration property.  Example:
 
-```js
+```json
 {
-	http_brotli_opts: {
-		chunkSize: 16 * 1024,
-		mode: "text",
-		level: 4,
-		hint: 0
+	"http_brotli_opts": {
+		"chunkSize": 16 * 1024,
+		"mode": "text",
+		"level": 4,
+		"hint": 0
 	}
 }
 ```
 
-See the Node [Brotli Class Options](https://nodejs.org/api/zlib.html#zlib_class_brotlioptions) for more details on what can be set here.  Note that `mode` is a convenience shortcut for `zlib.constants.BROTLI_PARAM_MODE` (which can set to `text`, `font` or `generic`), `level` is a shortcut for `zlib.constants.BROTLI_PARAM_QUALITY`, and `hint` is a shortcut for `zlib.constants.BROTLI_PARAM_SIZE_HINT`.
+See the Node [Brotli Class Options](https://nodejs.org/api/zlib.html#class-brotlioptions) for more details on what can be set here.  Note that `mode` is a convenience shortcut for `zlib.constants.BROTLI_PARAM_MODE` (which can set to `text`, `font` or `generic`), `level` is a shortcut for `zlib.constants.BROTLI_PARAM_QUALITY`, and `hint` is a shortcut for `zlib.constants.BROTLI_PARAM_SIZE_HINT`.
 
 ## http_default_acl
 
 This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Access_control_list), which is only used for URI handlers that register themselves as private.  To customize it, specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  It defaults to [localhost](https://en.wikipedia.org/wiki/Localhost) plus the [IPv4 private reserved](https://en.wikipedia.org/wiki/Private_network#Private_IPv4_addresses) and [IPv6 private reserved ranges](https://en.wikipedia.org/wiki/Private_network#Private_IPv6_addresses).  Example:
 
-```js
+```json
 {
-	http_default_acl: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10']
+	"http_default_acl": ["127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fd00::/8", "169.254.0.0/16", "fe80::/10"]
 }
 ```
 
@@ -452,7 +452,7 @@ This integer specifies the maximum number of concurrent requests to allow.  It d
 
 The idea here is that you can set [http_max_connections](#http_max_connections) to a much higher value, for things like load balancers pre-opening connections or clients using a pool of keep-alive connections, but then only allow your application code to process a smaller amount of requests in parallel.  For example:
 
-```js
+```json
 {
 	"http_max_connections": 2048,
 	"http_max_concurrent_requests": 64
@@ -494,7 +494,7 @@ With both `http_max_queue_length` and `http_max_queue_active` set to non-zero va
 
 The `http_queue_skip_uri_match` property is designed to work in conjunction with [http_max_concurrent_requests](#http_max_concurrent_requests).  It allows you to specify a URI pattern match that will always skip over the queue and be processed immediately, regardless of limits.  Using this feature you can allow things like health checks (possibly from a load balancer) to always be serviced, even during an overload situation.  Example use:
 
-```js
+```json
 {
 	"http_queue_skip_uri_match": "^/server-status"
 }
@@ -510,7 +510,7 @@ This boolean enables HTTP response header cleansing.  When set to `true` it will
 
 This boolean enables logging socket related errors, specifically sockets being closed unexpectedly (i.e. client closed socket, or some network error caused socket to abort).  This defaults to `true`, meaning these will be logged as errors.  If this generates too much log noise for your production stack, you can set the configuration property to `false`, which will only log a level 9 debug event.  Example:
 
-```js
+```json
 {
 	"http_log_socket_errors": false
 }
@@ -526,7 +526,7 @@ Example error log entry:
 
 When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) will match against the *full* incoming URI, including the query string.  By default this is disabled, meaning URIs are only matched using their path.  Example:
 
-```js
+```json
 {
 	"http_full_uri_match": true
 }
@@ -536,7 +536,7 @@ When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) 
 
 By default, we use the Node.js core [Query String](https://nodejs.org/api/querystring.html) module to parse query strings.  This module handles duplicate query params by converting them to arrays.  For example, an incoming URI such as `/something?foo=bar1&foo=bar2&name=joe` would produce the following `args.query` object:
 
-```js
+```json
 {
 	"foo": ["bar1", "bar2"],
 	"name": "joe"
@@ -545,7 +545,7 @@ By default, we use the Node.js core [Query String](https://nodejs.org/api/querys
 
 However, if you set `http_flatten_query` to `true` in your configuration, the web server will "flatten" query string parameters, so that duplicate keys will be combined into one, with the latter prevailing.  Example:
 
-```js
+```json
 {
 	"foo": "bar2",
 	"name": "joe"
@@ -589,7 +589,7 @@ If HTTPS mode is enabled, this is the port to listen on for secure requests.  Th
 
 If you would like to have the server listen on additional HTTPS ports, add them here as an array.  Example:
 
-```js
+```json
 {
 	"https_port": 443,
 	"https_alt_ports": [ 9000, 9001 ]
@@ -622,9 +622,9 @@ X-Forwarded-Proto: https
 
 The `https_header_detect` property allows you to define any number of header regular expression matches, that will "pseudo-enable" SSL mode in the web server.  Meaning, the `args.request.headers.ssl` property will be set to `true`, and calls to `server.getSelfURL()` will have a `https://` prefix.  Here is an example configuration, which detects many commonly used headers:
 
-```js
+```json
 {
-	https_header_detect: {
+	"https_header_detect": {
 		"Front-End-Https": "^on$",
 		"X-Url-Scheme": "^https$",
 		"X-Forwarded-Protocol": "^https$",
@@ -710,15 +710,15 @@ Note that the `Content-Type` response header is automatically set based on the t
 If you would like to host static files in other places besides [http_htdocs_dir](#http_htdocs_dir), possibly with different options, then look no further than the `addDirectoryHandler()` method.  This allows you to set up static file handling with a custom base URI, a custom base directory on disk, and apply other options as well.  You can call this method as many times as you like to setup multiple static file directories.  Example:
 
 ```js
-server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom' );
+server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/let/www/custom' );
 ```
 
-The above example would catch all incoming requests starting with `/mycustomdir`, and serve up static files inside of the `/var/www/custom` directory on disk (and possibly nested directories as well).  So a URL such as `http://MYSERVER/mycustomdir/foo/file1.txt` would map to the file `/var/www/custom/foo/file1.txt` on disk.
+The above example would catch all incoming requests starting with `/mycustomdir`, and serve up static files inside of the `/let/www/custom` directory on disk (and possibly nested directories as well).  So a URL such as `http://MYSERVER/mycustomdir/foo/file1.txt` would map to the file `/let/www/custom/foo/file1.txt` on disk.
 
 In this case a default TTL is applied to all files via [http_static_ttl](#http_static_ttl).  If you would like to customize the TTL for your custom static directory, as well as specify other options, pass in an object as the 3rd argument to `addDirectoryHandler()`.  Example of this:
 
 ```js
-server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom', {
+server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/let/www/custom', {
 	acl: true
 	ttl: 3600,
 	headers: {
@@ -751,7 +751,7 @@ callback(
 );
 ```
 
-The content body can be a string, a [Buffer](https://nodejs.org/api/buffer.html) object, or a [readable stream](https://nodejs.org/api/stream.html#stream_class_stream_readable).
+The content body can be a string, a [Buffer](https://nodejs.org/api/buffer.html) object, or a [readable stream](https://nodejs.org/api/stream.html#class-streamreadable).
 
 ### Custom Response
 
@@ -760,7 +760,7 @@ The second type of response is to send content directly to the underlying Node.j
 ```js
 server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, callback) {
 	// send custom raw response
-	var response = args.response;
+	let response = args.response;
 	response.writeHead( 200, "OK", { 'Content-Type': "text/html" } );
 	response.write( "Hello this is custom content!\n" );
 	response.end();
@@ -854,7 +854,7 @@ Your URI handler function is passed an `args` object containing the following pr
 
 ### args.request
 
-This is a reference to the underlying [Node.js server request](https://nodejs.org/api/http.html#http_http_incomingmessage) object.  From this you have access to things like:
+This is a reference to the underlying [Node.js server request](https://nodejs.org/api/http.html#class-httpincomingmessage) object.  From this you have access to things like:
 
 | Property | Description |
 |----------|-------------|
@@ -864,11 +864,11 @@ This is a reference to the underlying [Node.js server request](https://nodejs.or
 | `request.url` | The complete URI of the request (sans protocol and hostname). | 
 | `request.socket` | A reference to the underlying socket connection for the request. | 
 
-For more detailed documentation on the request object, see Node's [http.IncomingMessage](https://nodejs.org/api/http.html#http_http_incomingmessage).
+For more detailed documentation on the request object, see Node's [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage).
 
 ### args.response
 
-This is a reference to the underlying [Node.js server response](https://nodejs.org/api/http.html#http_class_http_serverresponse) object.  From this you have access to things like:
+This is a reference to the underlying [Node.js server response](https://nodejs.org/api/http.html#class-httpserverresponse) object.  From this you have access to things like:
 
 | Property / Method() | Description |
 |----------|-------------|
@@ -880,13 +880,15 @@ This is a reference to the underlying [Node.js server response](https://nodejs.o
 | `response.write()` | This writes a chunk of data to the socket. |
 | `response.end()` | This indicates that the response has been completely sent. |
 
-For more detailed documentation on the response object, see Node's [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse).
+For more detailed documentation on the response object, see Node's [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse).
 
 ### args.ip
 
-This will be set to the user's remote IP address.  Specifically, it will be set to the *first public IP address* if multiple addresses are provided via proxy HTTP headers and the socket.
+This will be set to the user's remote IP address.  Generally, it will be set to the *first public IP address* if multiple addresses are provided via proxy HTTP headers and the socket.
 
 Meaning, if the user is sitting behind one or more proxy servers, *or* your web server is behind a load balancer, this will attempt to locate the user's true public (non-private) IP address.  If none is found, it'll just return the first IP address, honoring proxy headers before the socket (which is usually correct).
+
+See [http_public_ip_offset](https://github.com/jhuckaby/pixl-server-web#http_public_ip_offset) for details on customizing the behavior of this property.
 
 If you just want the socket IP by itself, you can get it from `args.request.socket.remoteAddress`.
 
@@ -914,14 +916,14 @@ This will be an object containing key/value pairs from the URL query string, if 
 
 Duplicate query params become an array.  For example, an incoming URI such as `/something?foo=bar1&foo=bar2&name=joe` would produce the following `args.query` object:
 
-```js
+```json
 {
 	"foo": ["bar1", "bar2"],
 	"name": "joe"
 }
 ```
 
-See [http_flatten_query](#http_flatten_query) if you would rather the query string be flattened.
+See [http_flatten_query](#http_flatten_query) if you would rather duplicate query parameters be flattened (latter prevails).
 
 ### args.params
 
@@ -960,7 +962,7 @@ All temp files are automatically deleted at the end of the request.
 This is an object parsed from the incoming `Cookie` HTTP header, if present.  The contents will be key/value pairs for each semicolon-separated cookie provided.  For example, if the client sent in a `session_id` cookie, it could be accessed like this:
 
 ```js
-var session_id = args.cookies['session_id'];
+let session_id = args.cookies['session_id'];
 ```
 
 ### args.perf
@@ -1043,7 +1045,7 @@ The log columns are configurable in pixl-server, but are typically the following
 
 The `data` column is a JSON document containing various bits of additional information about the request.  Here is a formatted example:
 
-```js
+```json
 {
 	"id": "r4",
 	"proto": "http",
@@ -1084,7 +1086,7 @@ The `perf` object contains performance metrics for the request, as returned from
 
 If you only want to log *some* requests, but not all of them, you can specify a regular expression in the [http_regex_log](#http_regex_log) configuration property, which is matched against the incoming request URIs.  Example:
 
-```js
+```json
 {
 	"http_regex_log": "^/my/special/path"
 }
@@ -1094,7 +1096,7 @@ If you only want to log *some* requests, but not all of them, you can specify a 
 
 In addition to [Transaction Logging](#transaction-logging), pixl-server-web can also log performance metrics for certain requests, if the total request elapsed time meets or exceeds a custom threshold.  This allows you to log only "slow" requests, i.e. those possibly requiring investigation.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_perf](#http_log_perf) configuration property to `true`, and then set the [http_perf_threshold_ms](#http_perf_threshold_ms) property to the desired logging threshold in milliseconds.  Example:
 
-```js
+```json
 {
 	"http_log_perf": true,
 	"http_perf_threshold_ms": 100
@@ -1122,7 +1124,7 @@ The log columns are configurable in [pixl-server](https://github.com/jhuckaby/pi
 
 The `data` column is a JSON document containing various bits of additional information about the request, including the performance metrics.  Here is a formatted example:
 
-```js
+```json
 {
 	"id": "r4",
 	"proto": "http",
@@ -1176,7 +1178,7 @@ The performance threshold system retroactively adjusts the log to represent the 
 
 To include a partial or complete [Node.js Diagnostic Report](https://nodejs.org/docs/latest/api/report.html) in your performance log data, set the [http_perf_report](#http_perf_report) configuration property.  For a full report, set it to `true`:
 
-```js
+```json
 {
 	"http_perf_report": true
 }
@@ -1184,7 +1186,7 @@ To include a partial or complete [Node.js Diagnostic Report](https://nodejs.org/
 
 However, please note that this is *very* verbose.  For a partial report, you can set it to an array of report keys to include.  Example:
 
-```js
+```json
 {
 	"http_perf_report": ["uvthreadResourceUsage"]
 }
@@ -1235,12 +1237,12 @@ See the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) documentation for
 The web server keeps internal statistics including all open sockets, all active and recently completed requests, and performance metrics.  You can query for these by calling the `getStats()` method on the web server component.  Example:
 
 ```js
-	var stats = server.WebServer.getStats();
+let stats = server.WebServer.getStats();
 ```
 
 The result is an object in this format:
 
-```js
+```json
 {
 	"server": {
 		"uptime": 80,
@@ -1496,13 +1498,13 @@ See the [https_header_detect](#https_header_detect) configuration property for a
 To build a URL that points at the current server, call `getSelfURL()` and pass in the `args.request` object.  This will produce a URL using the same protocol as the request (HTTP or HTTPS), the same hostname used on the request, and the port number if applicable.  By default, the URL will point to the root path (`/`).  Example:
 
 ```js
-var url = server.WebServer.getSelfURL(args.request);
+let url = server.WebServer.getSelfURL(args.request);
 ```
 
 You can optionally pass in a URI path as the second argument.  For example, to build a URL to the exact request URI that came in, pass in `args.request.url` as the second argument:
 
 ```js
-var url = server.WebServer.getSelfURL(args.request, args.request.url);
+let url = server.WebServer.getSelfURL(args.request, args.request.url);
 ```
 
 ## Custom Method Handlers
@@ -1531,7 +1533,7 @@ server.WebServer.addMethodHandler( "OPTIONS", "CORS Preflight", function(args, c
 
 Here are instructions for using [Let's Encrypt](https://letsencrypt.org/) SSL certificates with pixl-server-web, specifically how to get your certificate issued and how to setup automatic renewal.
 
-The first thing you should do is make sure your server has a public IP address, and point your domain name to it using a DNS "A" record.  For these examples I will be using the domain `mydomain.com`.
+The first thing you should do is make sure your server has a public IP address, and point your domain name to it using a DNS "A" record.  For these examples we will be using the domain `mydomain.com`.
 
 Next, you will need to manually install [certbot](https://certbot.eff.org) on your server.  The easiest way to do this is to use the wrapper script [certbot-auto](https://certbot.eff.org/docs/install.html#certbot-auto), like this:
 
@@ -1541,10 +1543,10 @@ curl -s https://dl.eff.org/certbot-auto > /usr/local/bin/certbot-auto
 chmod a+x /usr/local/bin/certbot-auto
 ```
 
-We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) method for authorization.  Make sure you have a web server running on your server and listening on port 80 (only plain HTTP is required at this point).  Assuming your web server's document root path is `/var/www/html` issue this command:
+We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) method for authorization.  Make sure you have a web server running on your server and listening on port 80 (only plain HTTP is required at this point).  Assuming your web server's document root path is `/let/www/html` issue this command:
 
 ```sh
-/usr/local/bin/certbot-auto certonly --webroot -w /var/www/html -d mydomain.com
+/usr/local/bin/certbot-auto certonly --webroot -w /let/www/html -d mydomain.com
 ```
 
 If you need certificates for multiple subdomains, you can repeat the `-d` flag, e.g. `-d mydomain.com -d www.mydomain.com`.
@@ -1598,7 +1600,7 @@ Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily 
 /usr/local/bin/certbot-auto renew --post-hook "/opt/myapp/bin/control.sh restart" >/dev/null 2>&1
 ```
 
-Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
+Certbot produces its own log file here: `/let/log/letsencrypt/letsencrypt.log`
 
 ## Request Max Dump
 
@@ -1612,30 +1614,32 @@ To enable this feature, set the [http_req_max_dump_enabled](#http_req_max_dump_e
 
 ```json
 "http_req_max_dump_enabled": true,
-"http_req_max_dump_dir": "/var/log/web-server-dumps",
+"http_req_max_dump_dir": "/let/log/web-server-dumps",
 "http_req_max_dump_debounce": 10
 ```
 
-This would generate dump files in the `/var/log/web-server-dumps` directory every 10 seconds, while one or more maximum limits are maxed out.
+This would generate dump files in the `/let/log/web-server-dumps` directory every 10 seconds, while one or more maximum limits are maxed out.
 
-The dump files themselves are in JSON format, and contain everything from the [Stats API](#stats), as well as a list of all active and pending requests.  For each request, the following information is dumped:
+The dump files themselves are in JSON format, and contain everything from the [Stats API](#stats), as well as a list of all active and pending requests.  For each request, an object like the following is provided:
 
 ```json
-"r2945": {
-	"uri": "/api/test/sleep?ms=1",
-	"ip": "127.0.0.1",
-	"ips": [
-		"127.0.0.1"
-	],
-	"headers": {
-		"accept-encoding": "gzip, deflate, br",
-		"user-agent": "Mozilla/5.0; wperf/1.0.4",
-		"host": "localhost:3012",
-		"connection": "keep-alive"
-	},
-	"state": "writing",
-	"date": 1644617758.688,
-	"elapsed": 0.009999990463256836
+{
+	"r2945": {
+		"uri": "/api/test/sleep?ms=1",
+		"ip": "127.0.0.1",
+		"ips": [
+			"127.0.0.1"
+		],
+		"headers": {
+			"accept-encoding": "gzip, deflate, br",
+			"user-agent": "Mozilla/5.0; wperf/1.0.4",
+			"host": "localhost:3012",
+			"connection": "keep-alive"
+		},
+		"state": "writing",
+		"date": 1644617758.688,
+		"elapsed": 0.009999990463256836
+	}
 }
 ```
 
