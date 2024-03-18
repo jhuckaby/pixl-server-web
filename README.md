@@ -1094,6 +1094,7 @@ Here are descriptions of the data JSON properties:
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | String | The internal ID for the request. |
+| `method` | String | The HTTP method for the request, e.g. `GET`, `POST`. |
 | `proto` | String | The protocol of the request (`http` or `https`). |
 | `ip` | String | The first non-internal IP address (see [args.ip](#argsip)). |
 | `ips` | Array | All the client IPs as an array (includes those from proxy headers). |
@@ -1120,6 +1121,7 @@ If you set both the [http_log_requests](#http_log_requests) and [http_log_reques
 ```json
 {
 	"id": "r10",
+	"method": "POST",
 	"proto": "http",
 	"ip": "::1",
 	"ips": [
@@ -1196,6 +1198,7 @@ As you can see, in addition to all the information logged with [http_log_request
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | String | The internal ID for the request. |
+| `method` | String | The HTTP method for the request, e.g. `GET`, `POST`. |
 | `proto` | String | The protocol of the request (`http` or `https`). |
 | `ip` | String | The first non-internal IP address (see [args.ip](#argsip)). |
 | `ips` | Array | All the client IPs as an array (includes those from proxy headers). |
