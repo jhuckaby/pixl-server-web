@@ -1174,7 +1174,6 @@ If you set both the [http_log_requests](#http_log_requests) and [http_log_reques
 			"content-type": "application/json",
 			"x-joetest": "9876",
 			"server": "Test Server 1.0",
-			"x-200": "YUP BRO",
 			"content-length": "261",
 			"content-encoding": "gzip"
 		},
