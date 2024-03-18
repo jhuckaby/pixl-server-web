@@ -36,6 +36,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_default_acl](#http_default_acl)
 	* [http_log_requests](#http_log_requests)
 	* [http_log_request_details](#http_log_request_details)
+	* [http_log_body_max](#http_log_body_max)
 	* [http_regex_log](#http_regex_log)
 	* [http_log_perf](#http_log_perf)
 	* [http_perf_threshold_ms](#http_perf_threshold_ms)
@@ -427,6 +428,14 @@ This boolean allows you to enable transaction logging in the web server.  It def
 ## http_log_request_details
 
 This boolean adds verbose detail in the transaction log.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
+
+**Note:** This property only has effect if [http_log_requests](#http_log_requests) is enabled.
+
+## http_log_body_max
+
+This property sets the maximum allowed request and response body length that can be logged, when [http_log_request_details](#http_log_request_details) is enabled.  If the request or response body length exceeds this amount, they will not be included in the transaction log.
+
+**Note:** This property only has effect if [http_log_request_details](#http_log_request_details) is enabled.
 
 ## http_regex_log
 
