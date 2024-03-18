@@ -47,6 +47,7 @@ module.exports = Class({
 		"http_enable_brotli": false,
 		"http_default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		"http_log_requests": false,
+		"http_log_request_details": false,
 		"http_log_perf": false,
 		"http_perf_threshold_ms": 100,
 		"http_perf_report": false,
@@ -102,6 +103,7 @@ class WebServer extends Component {
 		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
 		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
 		this.logRequests = this.config.get('http_log_requests');
+		this.logRequestDetails = this.config.get('http_log_request_details');
 		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('http_regex_log') || '.+' )) : null;
 		this.logPerfEnabled = this.config.get('http_log_perf');
 		this.logPerfThreshold = this.config.get('http_perf_threshold_ms');

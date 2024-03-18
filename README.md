@@ -422,6 +422,10 @@ See [Access Control Lists](#access-control-lists) below for more details.
 
 This boolean allows you to enable transaction logging in the web server.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
 
+## http_log_request_details
+
+This boolean adds verbose detail in the transaction log.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
+
 ## http_regex_log
 
 If [http_log_requests](#http_log_requests) is enabled, this allows you to specify a regular expression to match against incoming request URIs.  Only requests that match will be logged.  It defaults to match all URIs (`.+`).  See [Transaction Logging](#transaction-logging) below for details.
@@ -1049,9 +1053,12 @@ The `data` column is a JSON document containing various bits of additional infor
 {
 	"id": "r4",
 	"proto": "http",
+	"ip": "::ffff:127.0.0.1",
 	"ips": [
 		"::ffff:127.0.0.1"
 	],
+	"port": 3012,
+	"socket": "c13",
 	"ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17",
 	"host": "localhost",
 	"perf": {
@@ -1073,14 +1080,17 @@ The `data` column is a JSON document containing various bits of additional infor
 
 Here are descriptions of the data JSON properties:
 
-| Property | Description |
-|----------|-------------|
-| `id` | The internal ID for the request. |
-| `proto` | The protocol of the request (`http` or `https`). |
-| `ips` | All the client IPs as an array (includes those from proxy headers). |
-| `ua` | The `User-Agent` string from the request headers. |
-| `host` | The hostname from the request URL. |
-| `perf` | Performance metrics, see below. |
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | String | The internal ID for the request. |
+| `proto` | String | The protocol of the request (`http` or `https`). |
+| `ip` | String | The first non-internal IP address (see [args.ip](#argsip)). |
+| `ips` | Array | All the client IPs as an array (includes those from proxy headers). |
+| `port` | Number | Which port number the request came in on. |
+| `socket` | String | The unique ID of the socket which served the request. |
+| `ua` | String | The `User-Agent` string from the request headers. |
+| `host` | String | The hostname from the request URL. |
+| `perf` | Object | Performance metrics, see below. |
 
 The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
 
@@ -1091,6 +1101,118 @@ If you only want to log *some* requests, but not all of them, you can specify a 
 	"http_regex_log": "^/my/special/path"
 }
 ```
+
+## Request Detail Logging
+
+If you set both the [http_log_requests](#http_log_requests) and [http_log_request_details](#http_log_request_details) configuration properties to `true`, pixl-server will include verbose details in the transaction logs, specifically in the JSON-formatted `data` column.  It will include the raw request and raw response (if in text format), and extra details about both the request and the response.  Example of the `data` column from the log, pretty-printed:
+
+```json
+{
+	"id": "r10",
+	"proto": "http",
+	"ip": "::1",
+	"ips": [
+		"::1"
+	],
+	"port": 3012,
+	"socket": "c8",
+	"perf": {
+		"scale": 1000,
+		"perf": {
+			"total": 22.689,
+			"queue": 0.261,
+			"read": 15.176,
+			"process": 1.791,
+			"encode": 1.281,
+			"write": 1.159
+		},
+		"counters": {
+			"bytes_in": 975133,
+			"bytes_out": 413,
+			"num_requests": 1
+		}
+	},
+	"files": {
+		"file1": {
+			"path": "/var/folders/11/r_0sz6s13cx1jn68l4m90zfr0000gn/T/f92cd259263698f0e19581400.LBM",
+			"type": "application/octet-stream",
+			"name": "V04.LBM",
+			"size": 318742,
+			"mtime": "2024-03-18T20:45:01.328Z"
+		}
+	},
+	"headers": {
+		"host": "localhost:3012",
+		"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		"sec-fetch-site": "same-origin",
+		"accept-language": "en-US,en;q=0.9",
+		"accept-encoding": "gzip, deflate",
+		"sec-fetch-mode": "navigate",
+		"content-type": "multipart/form-data; boundary=----WebKitFormBoundaryAzquNdwdvTjj9ArR",
+		"origin": "http://localhost:3012",
+		"user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+		"referer": "http://localhost:3012/upload.html",
+		"upgrade-insecure-requests": "1",
+		"content-length": "319132",
+		"connection": "keep-alive",
+		"sec-fetch-dest": "document"
+	},
+	"cookies": {},
+	"query": {
+		"pretty": "1"
+	},
+	"params": {
+		"key1": "value1",
+		"key2": "value2"
+	},
+	"response": {
+		"code": 200,
+		"status": "OK",
+		"headers": {
+			"content-type": "application/json",
+			"x-joetest": "9876",
+			"server": "Test Server 1.0",
+			"x-200": "YUP BRO",
+			"content-length": "261",
+			"content-encoding": "gzip"
+		},
+		"raw": "{\n\t\"code\": 0,\n\t\"query\": {\n\t\t\"pretty\": \"1\"\n\t},\n\t\"params\": {\n\t\t\"key1\": \"value1\",\n\t\t\"key2\": \"value2\"\n\t},\n\t\"cookies\": {},\n\t\"files\": {\n\t\t\"file1\": {\n\t\t\t\"path\": \"/var/folders/11/r_0sz6s13cx1jn68l4m90zfr0000gn/T/f92cd259263698f0e19581400.LBM\",\n\t\t\t\"type\": \"application/octet-stream\",\n\t\t\t\"name\": \"V04.LBM\",\n\t\t\t\"size\": 318742,\n\t\t\t\"mtime\": \"2024-03-18T20:45:01.328Z\"\n\t\t}\n\t}\n}\n"
+	}
+}
+```
+
+As you can see, in addition to all the information logged with [http_log_requests](#http_log_requests), the `data` column now includes even more detail.  Here is the full list of all JSON properties and their descriptions, logged with [http_log_request_details](#http_log_request_details) enabled:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | String | The internal ID for the request. |
+| `proto` | String | The protocol of the request (`http` or `https`). |
+| `ip` | String | The first non-internal IP address (see [args.ip](#argsip)). |
+| `ips` | Array | All the client IPs as an array (includes those from proxy headers). |
+| `port` | Number | Which port number the request came in on. |
+| `socket` | String | The unique ID of the socket which served the request. |
+| `perf` | Object | Performance metrics, in [pixl-perf](https://github.com/jhuckaby/pixl-perf) format. |
+| `files` | Object | If applicable, metadata about all file uploads (file names, sizes, types, and dates). |
+| `headers` | Object | All the HTTP request headers in key/value format (lower-cased keys). |
+| `cookies` | Object | Cookies from the request, parsed and in key/value form. |
+| `query` | Object | The query string from the request URL parsed into key/value pairs. |
+| `params` | Object | Key/value pairs from the request, i.e. parsed JSON or form POST data. |
+| `params.raw` | String | If applicable, the raw request body as a UTF-8 string (see below). |
+| `response` | Object | Details about the HTTP response sent to the client. |
+| `response.code` | Number | The HTTP response code (e.g. `200`). |
+| `response.status` | String | The HTTP response status (e.g. `OK`). |
+| `response.headers` | Object | All the HTTP response headers sent to the client (lower-cased keys). |
+| `response.raw` | String | If applicable, the raw response body as a UTF-8 string (see below). |
+
+The raw request and response content will only be logged in certain cases:
+
+- If the request was a JSON POST, then the parsed JSON document will be in the `params` object.
+- If the request was a non-JSON POST, but the content is recognized to be text, then the raw request body will be in `params.raw` as a UTF-8 string.
+- If the request was a form post, then the key/value pairs will be in the `params` object.
+- If the request contained file uploads, they will be summarized in the `files` object (see above for example).
+- If the response is recognized as text, it will be included in `response.raw` as a UTF-8 string.
+- If the response is non-text (binary), the raw content will not be included.
+- If the response is a stream, it will not be included.
 
 ## Performance Threshold Logging
 
