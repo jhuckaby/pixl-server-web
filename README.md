@@ -1224,8 +1224,9 @@ The raw request and response content will only be logged in certain cases:
 - If the request was a form post, then the key/value pairs will be in the `params` object.
 - If the request contained file uploads, they will be summarized in the `files` object (see above for example).
 - If the response is recognized as text, it will be included in `response.raw` as a UTF-8 string.
-- If the response is non-text (binary), the raw content will not be included.
-- If the response is a stream, it will not be included.
+- If the response is non-text (binary), the raw content will not be logged.
+- If the response is pre-compressed by application code, it will not be logged.
+- If the response is a stream, it will not be logged.
 
 ## Performance Threshold Logging
 
