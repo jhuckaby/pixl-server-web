@@ -23,7 +23,7 @@
 		"async": "3.2.2",
 		"class-plus": "^1.0.0",
 		"errno": "0.1.7",
-		"formidable": "2.1.1",
+		"formidable": "3.2.4",
 		"mime": "2.5.2",
 		"pixl-acl": "^1.0.4",
 		"pixl-perf": "^1.0.0",
