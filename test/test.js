@@ -373,7 +373,7 @@ module.exports = {
 					test.ok( !!json, "Got JSON in response" );
 					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
 					test.ok( !!json.params, "Found params object in JSON response" );
-					test.ok( json.params.myparam == "foobar4567", "Correct param in JSON response: " + json.params.myparam );
+					test.ok( json.params.myparam === "foobar4567", "Correct param in JSON response: " + json.params.myparam );
 					
 					// request headers will be echoed back
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
@@ -423,9 +423,18 @@ module.exports = {
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
 					test.ok( !!json.files, "Found files object in JSON response" );
 					test.ok( !!json.files.file1, "Found file1 object in JSON response" );
-					test.ok( json.files.file1.size == 43, "Uploaded file has correct size (43): " + json.files.file1.size );
+					
+					// {"path":"/var/folders/11/r_0sz6s13cx1jn68l4m90zfr0000gn/T/40c1602ef5d90ed480edd3000.gif","type":"image/gif","name":"spacer.gif","size":43,"mtime":"2024-04-23T17:56:22.159Z"}
+					var file1 = json.files.file1;
+					test.ok( file1.size == 43, "Uploaded file has correct size (43): " + file1.size );
+					test.ok( !!file1.path, "Uploaded file has no path" );
+					test.ok( file1.type == 'image/gif', "Unexpected file type after upload: " + file1.type );
+					test.ok( file1.name == 'spacer.gif', "Unexpected file name: " + file1.name );
+					test.ok( !!file1.mtime, "Uploaded file has no mtime" );
+					test.ok( !isNaN(Date.parse(file1.mtime)), "Invalid mtime in uploaded file: " + file1.mtime );
+					
 					test.done();
-				} 
+				}
 			);
 		},
 		
@@ -1662,7 +1671,7 @@ module.exports = {
 					test.ok( !!json, "Got JSON in response" );
 					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
 					test.ok( !!json.params, "Found params object in JSON response" );
-					test.ok( json.params.myparam == "foobar4567", "Correct param in JSON response: " + json.params.myparam );
+					test.ok( json.params.myparam === "foobar4567", "Correct param in JSON response: " + json.params.myparam );
 					
 					// request headers will be echoed back
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
@@ -1715,7 +1724,16 @@ module.exports = {
 					test.ok( !!json.headers.ssl, "SSL pseudo-header present in echo" );
 					test.ok( !!json.files, "Found files object in JSON response" );
 					test.ok( !!json.files.file1, "Found file1 object in JSON response" );
-					test.ok( json.files.file1.size == 43, "Uploaded file has correct size (43): " + json.files.file1.size );
+					
+					// {"path":"/var/folders/11/r_0sz6s13cx1jn68l4m90zfr0000gn/T/40c1602ef5d90ed480edd3000.gif","type":"image/gif","name":"spacer.gif","size":43,"mtime":"2024-04-23T17:56:22.159Z"}
+					var file1 = json.files.file1;
+					test.ok( file1.size == 43, "Uploaded file has correct size (43): " + file1.size );
+					test.ok( !!file1.path, "Uploaded file has no path" );
+					test.ok( file1.type == 'image/gif', "Unexpected file type after upload: " + file1.type );
+					test.ok( file1.name == 'spacer.gif', "Unexpected file name: " + file1.name );
+					test.ok( !!file1.mtime, "Uploaded file has no mtime" );
+					test.ok( !isNaN(Date.parse(file1.mtime)), "Invalid mtime in uploaded file: " + file1.mtime );
+					
 					test.done();
 				} 
 			);
