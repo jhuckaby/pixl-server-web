@@ -55,6 +55,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_req_max_dump_dir](#http_req_max_dump_dir)
 	* [http_req_max_dump_debounce](#http_req_max_dump_debounce)
 	* [http_public_ip_offset](#http_public_ip_offset)
+	* [http_legacy_callback_support](#http_legacy_callback_support)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_alt_ports](#https_alt_ports)
