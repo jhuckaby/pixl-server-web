@@ -595,7 +595,7 @@ By setting `http_public_ip_offset` to an integer value, you can select *exactly*
 
 ## http_legacy_callback_support
 
-This adds support for legacy applications, which require JSONP callback-style API responses, as well as extremely old HTML-wrapped IFRAME API responses.  It defaults to disabled.  It is **highly recommended** that you *leave this dsiabled* for all modern applications, as it prevents a classic [XSS reflection attack](https://owasp.org/www-community/attacks/xss/#reflected-xss-attacks) on your APIs:
+This adds support for legacy applications, which require JSONP callback-style API responses, as well as extremely old HTML-wrapped IFRAME API responses.  It defaults to disabled.  It is **highly recommended** that you *leave this disabled* for all modern applications, as it prevents a classic [XSS reflection attack](https://owasp.org/www-community/attacks/xss/#reflected-xss-attacks) on your APIs:
 
 ```json
 {
