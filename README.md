@@ -813,7 +813,7 @@ server.WebServer.addURIHandler( '/my/custom/uri', 'Custom Name', function(args, 
 } );
 ```
 
-Typically this is sent as pure JSON with the Content-Type `application/json`.  The raw HTTP response would look something like this:
+This is sent as pure JSON with the Content-Type `application/json`.  The raw HTTP response would look something like this:
 
 ```
 HTTP/1.1 200 OK
@@ -824,33 +824,6 @@ Date: Sun, 05 Apr 2015 20:58:50 GMT
 Server: Test 1.0
 
 {"Code":0,"Description":"Success","User":{"Name":"Joe","Email":"foo@bar.com"}}
-```
-
-Now, depending on the request URL's query string, two variants of the JSON response are possible.  First, if there is a `callback` query parameter present, it will be prefixed onto the front of the JSON payload, which will be wrapped in parenthesis, and Content-Type will be switched to `text/javascript`.  This is an AJAX / JSONP style of response, and looks like this, assuming a request URL containing `?callback=myfunc`:
-
-```
-HTTP/1.1 200 OK
-Connection: keep-alive
-Content-Length: 88
-Content-Type: text/javascript
-Date: Sun, 05 Apr 2015 21:25:49 GMT
-Server: Test 1.0
-
-myfunc({"Code":0,"Description":"Success","User":{"Name":"Joe","Email":"foo@bar.com"}});
-```
-
-And finally, if the request URL's query string contains both a `callback`, and a `format` parameter set to `html`, the response will be actual HTML (Content-Type `text/html`) with a `<script>` tag embedded containing the JSON and callback wrapper.  This is useful for IFRAMEs which may need to talk to their parent window after a form submission.  Here is an example assuming a request URL containing `?callback=parent.myfunc&format=html`:
-
-```
-HTTP/1.1 200 OK
-Connection: keep-alive
-Content-Length: 151
-Content-Type: text/html
-Date: Sun, 05 Apr 2015 21:28:48 GMT
-Server: Test 1.0
-
-<html><head><script>parent.myfunc({"Code":0,"Description":"Success","User":{"Name":"Joe","Email":"foo@bar.com"}});
-</script></head><body>&nbsp;</body></html>
 ```
 
 ### Non-Response
