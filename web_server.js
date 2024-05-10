@@ -68,7 +68,7 @@ module.exports = Class({
 		"http_req_max_dump_dir": "",
 		"http_req_max_dump_debounce": 10,
 		"http_code_response_headers": null,
-		"http_legacy_callback_support": true
+		"http_legacy_callback_support": false
 	},
 	
 	conns: null,

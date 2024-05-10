@@ -592,6 +592,18 @@ By setting `http_public_ip_offset` to an integer value, you can select *exactly*
 | `-2` | Always select the *second-to-last* IP in the list.  Use this mode if you have a single proxy device in front of your server (e.g. a load balancer). |
 | `-3` | Always select the *third-to-last* IP in the list.  Use this mode if you have two proxy devices in front of your server (e.g. a load balancer and CDN / cache). |
 
+## http_legacy_callback_support
+
+This adds support for legacy applications, which require JSONP callback-style API responses, as well as extremely old HTML-wrapped IFRAME API responses.  It defaults to disabled.  It is **highly recommended** that you *leave this dsiabled* for all modern applications, as it prevents a classic [XSS reflection attack](https://owasp.org/www-community/attacks/xss/#reflected-xss-attacks) on your APIs:
+
+```json
+{
+	"http_legacy_callback_support": false
+}
+```
+
+Only enable this if you are supporting a legacy application which is hosted on a private, trusted network.
+
 ## https
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, and possibly `https_cert_file` and `https_key_file` for this to work.
