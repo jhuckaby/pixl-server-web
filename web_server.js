@@ -46,6 +46,7 @@ module.exports = Class({
 		"http_compress_text": false,
 		"http_enable_brotli": false,
 		"http_default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
+		"http_blacklist": [],
 		"http_log_requests": false,
 		"http_log_request_details": false,
 		"http_log_body_max": 32768,
@@ -99,8 +100,49 @@ class WebServer extends Component {
 		this.uriFilters = [];
 		this.uriHandlers = [];
 		this.methodHandlers = [];
-		this.defaultACL = new ACL();
-		this.aclPrivateRanges = new ACL( this.config.get('http_private_ip_ranges') );
+		this.stats = { current: {}, last: {} };
+		this.recent = [];
+		
+		this.prepConfig();
+		this.config.on('reload', this.prepConfig.bind(this) );
+		
+		// setup queue to handle all requests
+		// if both max concurrent req AND max connections are not set, just use a very large number
+		this.queue = async.queue( this.parseHTTPRequest.bind(this), this.maxConcurrentReqs || 8192 );
+		
+		// listen for tick events to swap stat buffers
+		this.server.on( 'tick', this.tick.bind(this) );
+		
+		// start listeners
+		this.startAll(callback);
+	}
+	
+	prepConfig() {
+		// prep config at startup, and when config is hot reloaded
+		try { 
+			this.defaultACL = new ACL( this.config.get('http_default_acl') ); 
+		}
+		catch (err) {
+			this.logError('acl', "Failed to initialize default ACL: " + err);
+			this.defaultACL = new ACL();
+		}
+		
+		try {
+			this.aclBlacklist = new ACL( this.config.get('http_blacklist') );
+		}
+		catch (err) {
+			this.logError('acl', "Failed to initialize blacklist: " + err);
+			this.aclBlacklist = new ACL();
+		}
+		
+		try {
+			this.aclPrivateRanges = new ACL( this.config.get('http_private_ip_ranges') );
+		}
+		catch (err) {
+			this.logError('acl', "Failed to initialize private range ACL: " + err);
+			this.aclPrivateRanges = new ACL();
+		}
+		
 		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
 		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
 		this.logRequests = this.config.get('http_log_requests');
@@ -111,8 +153,6 @@ class WebServer extends Component {
 		this.logPerfThreshold = this.config.get('http_perf_threshold_ms');
 		this.logPerfReport = this.config.get('http_perf_report');
 		this.keepRecentRequests = this.config.get('http_recent_requests');
-		this.stats = { current: {}, last: {} };
-		this.recent = [];
 		
 		// optionally compress text
 		this.compressText = this.config.get('http_compress_text') || this.config.get('http_gzip_text');
@@ -151,17 +191,14 @@ class WebServer extends Component {
 		
 		// optional max requests per KA connection
 		this.maxReqsPerConn = this.config.get('http_max_requests_per_connection');
-		
-		// setup queue to handle all requests
-		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
 		this.maxQueueLength = this.config.get('http_max_queue_length');
 		this.maxQueueActive = this.config.get('http_max_queue_active');
 		
+		// NOTE: changing maxConcurrentReqs at runtime has no effect
+		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
+		
 		this.queueSkipMatch = this.config.get('http_queue_skip_uri_match') ? 
 			new RegExp( this.config.get('http_queue_skip_uri_match') ) : false;
-		
-		// if both max concurrent req AND max connections are not set, just use a very large number
-		this.queue = async.queue( this.parseHTTPRequest.bind(this), this.maxConcurrentReqs || 8192 );
 		
 		// front-end https header detection
 		var ssl_headers = this.config.get('https_header_detect');
@@ -171,20 +208,7 @@ class WebServer extends Component {
 				this.ssl_header_detect[ key.toLowerCase() ] = new RegExp( ssl_headers[key] );
 			}
 		}
-		
-		// initialize default ACL blocks
-		if (this.config.get('http_default_acl')) {
-			try {
-				this.config.get('http_default_acl').forEach( function(block) {
-					self.defaultACL.add( block );
-				} );
-			}
-			catch (err) {
-				var err_msg = "Failed to initialize ACL: " + err.message;
-				this.logError('acl', err_msg);
-				throw new Error(err_msg);
-			}
-		}
+		else delete this.ssl_header_detect;
 		
 		// initialize request max dump system, if enabled
 		this.reqMaxDumpEnabled = this.config.get('http_req_max_dump_enabled');
@@ -195,11 +219,6 @@ class WebServer extends Component {
 		if (this.reqMaxDumpEnabled && this.reqMaxDumpDir && !fs.existsSync(this.reqMaxDumpDir)) {
 			fs.mkdirSync( this.reqMaxDumpDir, { mode: 0o777, recursive: true } );
 		}
-		
-		// listen for tick events to swap stat buffers
-		this.server.on( 'tick', this.tick.bind(this) );
-		
-		this.startAll(callback);
 	}
 	
 	startAll(callback) {

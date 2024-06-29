@@ -13,6 +13,8 @@ var PixlServer = require('pixl-server');
 
 var PixlRequest = require('pixl-request');
 var request = new PixlRequest();
+request.setTimeout( 5 * 1000 ); // 5 seconds
+request.setIdleTimeout( 5 * 1000 ); // 5 seconds
 
 var http = require('http');
 var agent = new http.Agent({ keepAlive: true });
@@ -51,6 +53,8 @@ var server = new PixlServer({
 			"http_regex_log": ".+",
 			"http_recent_requests": 10,
 			"http_max_connections": 10,
+			
+			"http_blacklist": ["5.6.7.0/24"],
 			
 			"https": 1,
 			"https_port": 3021,
@@ -1517,6 +1521,53 @@ module.exports = {
 					test.ok( !err, "No error from PixlRequest: " + err );
 					test.ok( !!resp, "Got resp from PixlRequest" );
 					test.ok( resp.statusCode == 403, "Got 403 response: " + resp.statusCode );
+					test.done();
+				} 
+			);
+		},
+		
+		// blacklist
+		function testBlacklistedIP(test) {
+			request.get( 'http://127.0.0.1:3020/json', 
+				{
+					headers: {
+						"X-Forwarded-For": "5.6.7.8" // blacklisted
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 403, "Got 403 response: " + resp.statusCode );
+					test.done();
+				} 
+			);
+		},
+		function testAnotherBlacklistedIP(test) {
+			request.get( 'http://127.0.0.1:3020/json', 
+				{
+					headers: {
+						"X-Forwarded-For": "1.2.3.4, 5.6.7.255, 2.3.4.5" // blacklisted
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 403, "Got 403 response: " + resp.statusCode );
+					test.done();
+				} 
+			);
+		},
+		function testAllowedIP(test) {
+			request.get( 'http://127.0.0.1:3020/json', 
+				{
+					headers: {
+						"X-Forwarded-For": "5.6.8.7" // just outside blacklisted range
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
 					test.done();
 				} 
 			);
