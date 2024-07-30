@@ -219,6 +219,30 @@ class WebServer extends Component {
 		if (this.reqMaxDumpEnabled && this.reqMaxDumpDir && !fs.existsSync(this.reqMaxDumpDir)) {
 			fs.mkdirSync( this.reqMaxDumpDir, { mode: 0o777, recursive: true } );
 		}
+		
+		// url rewrites
+		this.rewrites = [];
+		if (this.config.get('http_rewrites')) {
+			var rewrite_map = this.config.get('http_rewrites');
+			for (var key in rewrite_map) {
+				var rewrite = rewrite_map[key];
+				if (typeof(rewrite) == 'string') rewrite = { url: rewrite_map[key] };
+				rewrite.regexp = new RegExp(key);
+				this.rewrites.push(rewrite);
+			}
+		}
+		
+		// url redirects
+		this.redirects = [];
+		if (this.config.get('http_redirects')) {
+			var redir_map = this.config.get('http_redirects');
+			for (var key in redir_map) {
+				var redirect = redir_map[key];
+				if (typeof(redirect) == 'string') redirect = { url: redir_map[key] };
+				redirect.regexp = new RegExp(key);
+				this.redirects.push(redirect);
+			}
+		}
 	}
 	
 	startAll(callback) {

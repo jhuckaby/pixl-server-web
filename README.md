@@ -34,6 +34,9 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_enable_brotli](#http_enable_brotli)
 	* [http_brotli_opts](#http_brotli_opts)
 	* [http_default_acl](#http_default_acl)
+	* [http_blacklist](#http_blacklist)
+	* [http_rewrites](#http_rewrites)
+	* [http_redirects](#http_redirects)
 	* [http_log_requests](#http_log_requests)
 	* [http_log_request_details](#http_log_request_details)
 	* [http_log_body_max](#http_log_body_max)
@@ -438,6 +441,108 @@ This example would reject all incoming IP addresses from Apple and AT&T (who own
 
 When a new incoming connection is established, the socket IP is immediately checked against the blacklist, and if matched, the socket is "hard closed".  This is an early detection and rejection, before the HTTP request even comes in.  In this case a HTTP response isn't sent back (as the socket is simply slammed shut).  However, if you are using a load balancer or proxy, the user's true IP address might not be known until later on in the request cycle, once the HTTP headers are read in.  At that point all the user's IPs are checked against the blacklist again, and if any of them match, a `HTTP 403 Forbidden` response is sent back.
 
+## http_rewrites
+
+If you need to rewrite certain incoming URLs on-the-fly, you can define rules in the `http_rewrites` object.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the substitution strings to use as replacements.  Here is a simple example:
+
+```json
+{
+	"http_rewrites": {
+		"^/rewrite/me": "/target/path"
+	}
+}
+```
+
+This would match any incoming URI paths that start with `/rewrite/me` and replace that section of the path with `/target/path`.  So for example a full URI path of `/rewrite/me/please?foo=bar` would rewrite to `/target/path/please?foo=bar`.  Note that the suffix after the match was copied over, as well as the query string.  Rewriting happens very early in the request cycle before any other processing occurs, including URI filters, method handers and URI handlers, so they all see the final transformed URI, and not the original.
+
+Since URIs are matched using regular expressions, you can define capturing groups and refer to them in the target substitution string, using the standard `$1`, `$2`, `$3` syntax.  Example:
+
+```json
+{
+	"http_rewrites": {
+		"^/rewrite/me(.*)$": "/target/path?oldpath=$1"
+	}
+}
+```
+
+This example would grab everything after `/rewrite/me` and store it in a capture group, which is then expanded into the replacement string using the `$1` macro.
+
+For even more control over your rewrites, you can specify them using an advanced syntax.  Instead of the target path string, set the value to an object containing the following:
+
+| Property Name | Type | Description |
+|---------------|------|-------------|
+| `url` | String | The target URI replacement string. |
+| `headers` | Object | Optionally insert custom headers into the incoming request. |
+| `last` | Boolean | Set this to `true` to ensure no futher rewrites happen on the request. |
+
+Here is an example showing an advanced configuration:
+
+```json
+{
+	"http_rewrites": {
+		"^/rewrite/me": {
+			"url": "/target/path",
+			"headers": { "X-Rewritten": "Yes" },
+			"last": true
+		}
+	}
+}
+```
+
+A URI may be rewritten multiple times if it matches multiple rules, which are applied in the order which they appear in your configuration.  You can specify a `last` property to ensure that rule matching stops when the specified rule matches a request.
+
+You can use the `headers` property to insert custom HTTP headers into the request.  These will be accessible by downstream URI handlers, and they will also be logged if [http_log_requests](#http_log_requests) is enabled.
+
+## http_redirects
+
+If you need to redirect certain incoming requests to external URLs, you can define rules in the `http_redirects` object.  When matched, these will interrupt the current request and return a redirect response to the client.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the fully-qualified URLs to redirect to.  Here is a simple example:
+
+```json
+{
+	"http_redirects": {
+		"^/redirect/me": "https://disney.com/"
+	}
+}
+```
+
+This would match any incoming URI paths that start with `/redirect/me` and redirect the user to `https://disney.com/`.  Redirects are matched during the URI handling portion of the request cycle, so things like requests and URI filters have already been handled.  URI request handlers are not invoked if a redirect occurs.
+
+Since URIs are matched using regular expressions, you can define capturing groups and refer to them in the target redirect URL, using the standard `$1`, `$2`, `$3` syntax.  Example:
+
+```json
+{
+	"http_redirects": {
+		"^/github/(.*)$": "https://github.com/jhuckaby/$1"
+	}
+}
+```
+
+This example would grab everything after `/github/` and store it in a capture group, which is then expanded into the replacement string using the `$1` macro.  For example, `/github/pixl-server-web` would redirect to `https://github.com/jhuckaby/pixl-server-web`.
+
+For even more control over your redirects, you can specify them using an advanced syntax.  Instead of the target URL, set the value to an object containing the following:
+
+| Property Name | Type | Description |
+|---------------|------|-------------|
+| `url` | String | The fully qualified URL to redirect to. |
+| `headers` | Object | Optionally insert custom headers into the incoming request. |
+| `status` | String | The HTTP response code and status to use, default is `302 Found`. |
+
+Here is an example showing an advanced configuration:
+
+```json
+{
+	"http_redirects": {
+		"^/redirect/me": {
+			"url": "https://disney.com/",
+			"headers": { "X-Redirected": "Yes" },
+			"status": "301 Moved Permanently"
+		}
+	}
+}
+```
+
+You can use the `headers` property to insert custom HTTP headers into the redirect response.  Use the `status` to customize the HTTP response code and status (it defaults to `302 Found`).
+
 ## http_log_requests
 
 This boolean allows you to enable transaction logging in the web server.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
@@ -450,7 +555,7 @@ This boolean adds verbose detail in the transaction log.  It defaults to `false`
 
 ## http_log_body_max
 
-This property sets the maximum allowed request and response body length that can be logged, when [http_log_request_details](#http_log_request_details) is enabled.  If the request or response body length exceeds this amount, they will not be included in the transaction log.
+This property sets the maximum allowed request and response body length that can be logged, when [http_log_request_details](#http_log_request_details) is enabled.  It defaults to `32768` (32K).  If the request or response body length exceeds this amount, they will not be included in the transaction log.
 
 **Note:** This property only has effect if [http_log_request_details](#http_log_request_details) is enabled.
 

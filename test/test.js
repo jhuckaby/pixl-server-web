@@ -56,6 +56,18 @@ var server = new PixlServer({
 			
 			"http_blacklist": ["5.6.7.0/24"],
 			
+			"http_rewrites": {
+				"^/rewrite(.*)$": "/json$1"
+			},
+			"http_redirects": {
+				"^/disney": "https://disney.com/",
+				"^/pixar(.*)$": {
+					"url": "https://pixar.com$1",
+					"headers": { "X-Animal": "Frog" },
+					"status": "301 Moved Permanently"
+				}
+			},
+			
 			"https": 1,
 			"https_port": 3021,
 			"https_alt_ports": [3121],
@@ -192,6 +204,100 @@ module.exports = {
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
 					
+					test.done();
+				} 
+			);
+		},
+		
+		function testSimpleURLRewrite(test) {
+			// test simple rewrite
+			request.json( 'http://127.0.0.1:3020/rewrite', false,
+				{
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testAdvancedURLRewrite(test) {
+			// test advanced rewrite
+			request.json( 'http://127.0.0.1:3020/rewrite?foo=bar1234&baz=bop%20pog&animal=frog&animal=dog', false,
+				{
+					headers: {
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					test.ok( !!json.query, "Found query object in JSON response" );
+					test.ok( json.query.foo == "bar1234", "Query contains correct foo key" );
+					test.ok( json.query.baz == "bop pog", "Query contains correct baz key (URL encoding)" );
+					
+					// dupes should become array by default
+					test.ok( typeof(json.query.animal) == 'object', "Query param animal is an object" );
+					test.ok( json.query.animal.length == 2, "Query param animal has length 2" );
+					test.ok( json.query.animal[0] === 'frog', "First animal is frog" );
+					test.ok( json.query.animal[1] === 'dog', "Second animal is dog" );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		function testSimpleURLRedirect(test) {
+			// simple 302
+			request.get( 'http://127.0.0.1:3020/disney',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 302, "Got 302 response: " + resp.statusCode );
+					test.ok( !!resp.headers['location'], "Got Location header" );
+					test.ok( !!resp.headers['location'].match(/disney\.com/), "Correct Location header");
+					test.done();
+				} 
+			);
+		},
+		
+		function testAdvancedURLRedirect(test) {
+			// more complex redirect config (301, custom header)
+			request.get( 'http://127.0.0.1:3020/pixar/toads',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 301, "Got 301 response: " + resp.statusCode );
+					test.ok( !!resp.headers['location'], "Got Location header" );
+					test.ok( !!resp.headers['location'].match(/pixar\.com\/toads/), "Correct Location header");
+					test.ok( !!resp.headers['x-animal'], "Got x-animal header" );
+					test.ok( !!resp.headers['x-animal'].match(/frog/i), "Correct x-animal header");
 					test.done();
 				} 
 			);
@@ -1364,7 +1470,7 @@ module.exports = {
 		},
 		
 		// redirect
-		function testRedirect(test) {
+		function testRedirectHandler(test) {
 			request.get( 'http://127.0.0.1:3020/redirect',
 				function(err, resp, data, perf) {
 					test.ok( !err, "No error from PixlRequest: " + err );
