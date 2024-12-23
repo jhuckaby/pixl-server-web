@@ -47,6 +47,7 @@ module.exports = Class({
 		"http_enable_brotli": false,
 		"http_default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		"http_blacklist": [],
+		"http_allow_hosts": [],
 		"http_log_requests": false,
 		"http_log_request_details": false,
 		"http_log_body_max": 32768,
@@ -243,6 +244,9 @@ class WebServer extends Component {
 				this.redirects.push(redirect);
 			}
 		}
+		
+		// custom host list
+		this.allowHosts = (this.config.get('http_allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
 	}
 	
 	startAll(callback) {

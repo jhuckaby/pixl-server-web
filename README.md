@@ -441,6 +441,28 @@ This example would reject all incoming IP addresses from Apple and AT&T (who own
 
 When a new incoming connection is established, the socket IP is immediately checked against the blacklist, and if matched, the socket is "hard closed".  This is an early detection and rejection, before the HTTP request even comes in.  In this case a HTTP response isn't sent back (as the socket is simply slammed shut).  However, if you are using a load balancer or proxy, the user's true IP address might not be known until later on in the request cycle, once the HTTP headers are read in.  At that point all the user's IPs are checked against the blacklist again, and if any of them match, a `HTTP 403 Forbidden` response is sent back.
 
+## http_allow_hosts
+
+The `http_allow_hosts` property allows you to specify a list of hosts to allow on incoming requests.  Specifically, this matches the incoming HTTP `Host` request header, and the value must match at least one entry in the array (case-insensitive).  For example, if you are hosting your application behind a domain name, you may want to restrict incoming requests so that they must explicitly point to your domain name (and disallow requests to the IP address).  Here is how to set this up:
+
+```json
+	"http_allow_hosts": ["mydomain.com"]
+```
+
+In the above example, only requests to `mydomain.com` would be allowed.  All other domains or IP addresses in the URL would be rejected with a `HTTP 403 Forbidden` error.  Include multiple entries in the array for things like subdomains:
+
+```json
+	"http_allow_hosts": ["mydomain.com", "www.mydomain.com"]
+```
+
+Note that if your users have to specify a port number in the URL, this must be specified in the `http_allow_hosts` array as well (it matches the `Host` request header exactly).  So for example, if you are hosting an app on a non-standard port number, but you want to restrict the host, include the port like this:
+
+```json
+	"http_allow_hosts": ["mydomain.com:3000"]
+```
+
+If the `http_allow_hosts` array is empty or omitted entirely, all hosts are allowed.  This is the default behavior.
+
 ## http_rewrites
 
 If you need to rewrite certain incoming URLs on-the-fly, you can define rules in the `http_rewrites` object.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the substitution strings to use as replacements.  Here is a simple example:
