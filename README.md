@@ -789,6 +789,19 @@ Note that these are matched using logical OR, so only one of them needs to match
 
 This sets the idle socket timeout for all incoming HTTPS requests.  If omitted, the Node.js default is 2 minutes.  Please specify your value in seconds.
 
+## https_bind_address
+
+Optionally specify an exact local IP address to bind the HTTPS listener to.  By default this uses the value of [http_bind_address](#http_bind_address), but you can bind them differently using this property.  Example:
+
+```json
+{
+	"http_bind_address": "127.0.0.1",
+	"https_bind_address": "0.0.0.0"
+}
+```
+
+This example would cause the server to only listen on localhost for plain HTTP traffic, but listen on *all* network interfaces for HTTPS traffic.
+
 # Custom URI Handlers
 
 You can attach your own handler methods for intercepting and responding to certain incoming URIs.  So for example, instead of the URI `/api/add_user` looking for a static file on disk, you can have the web server invoke your own function for handling it, and sending a custom response.  
