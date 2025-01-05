@@ -248,6 +248,12 @@ class WebServer extends Component {
 		// custom host list
 		this.allowHosts = (this.config.get('http_allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
 		this.httpsAllowHosts = (this.config.get('https_allow_hosts') || this.config.get('http_allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
+		
+		// set static TTL to 0 in debug mode
+		if (this.server.debug) {
+			this.logDebug(5, "Setting static TTL to 0 for debug mode");
+			this.config.set('http_static_ttl', 0);
+		}
 	}
 	
 	startAll(callback) {
