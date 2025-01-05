@@ -134,12 +134,12 @@ let server = new PixlServer({
 	__version: "1.0",
 	
 	config: {
-		"log_dir": "/let/log",
+		"log_dir": "/var/log",
 		"debug_level": 9,
 		
 		"WebServer": {
 			"http_port": 80,
-			"http_htdocs_dir": "/let/www/html"
+			"http_htdocs_dir": "/var/www/html"
 		}
 	},
 	
@@ -171,7 +171,7 @@ components: [
 ]
 ```
 
-This example is a very simple web server configuration, which will listen on port 80 and serve static files out of `/let/www/html`.  However, if the URI is `/my/custom/uri`, a custom callback function is fired and can serve up any response it wants.  This is a great way to implement an API.
+This example is a very simple web server configuration, which will listen on port 80 and serve static files out of `/var/www/html`.  However, if the URI is `/my/custom/uri`, a custom callback function is fired and can serve up any response it wants.  This is a great way to implement an API.
 
 # Configuration
 
@@ -206,7 +206,7 @@ This example would cause the server to *only* listen on localhost, and not any e
 
 ## http_htdocs_dir
 
-This is the path to the directory to serve static files out of, e.g. `/let/www/html`.
+This is the path to the directory to serve static files out of, e.g. `/var/www/html`.
 
 ## http_max_upload_size
 
@@ -890,15 +890,15 @@ Note that the `Content-Type` response header is automatically set based on the t
 If you would like to host static files in other places besides [http_htdocs_dir](#http_htdocs_dir), possibly with different options, then look no further than the `addDirectoryHandler()` method.  This allows you to set up static file handling with a custom base URI, a custom base directory on disk, and apply other options as well.  You can call this method as many times as you like to setup multiple static file directories.  Example:
 
 ```js
-server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/let/www/custom' );
+server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom' );
 ```
 
-The above example would catch all incoming requests starting with `/mycustomdir`, and serve up static files inside of the `/let/www/custom` directory on disk (and possibly nested directories as well).  So a URL such as `http://MYSERVER/mycustomdir/foo/file1.txt` would map to the file `/let/www/custom/foo/file1.txt` on disk.
+The above example would catch all incoming requests starting with `/mycustomdir`, and serve up static files inside of the `/var/www/custom` directory on disk (and possibly nested directories as well).  So a URL such as `http://MYSERVER/mycustomdir/foo/file1.txt` would map to the file `/var/www/custom/foo/file1.txt` on disk.
 
 In this case a default TTL is applied to all files via [http_static_ttl](#http_static_ttl).  If you would like to customize the TTL for your custom static directory, as well as specify other options, pass in an object as the 3rd argument to `addDirectoryHandler()`.  Example of this:
 
 ```js
-server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/let/www/custom', {
+server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom', {
 	acl: true
 	ttl: 3600,
 	headers: {
@@ -1817,10 +1817,10 @@ curl -s https://dl.eff.org/certbot-auto > /usr/local/bin/certbot-auto
 chmod a+x /usr/local/bin/certbot-auto
 ```
 
-We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) method for authorization.  Make sure you have a web server running on your server and listening on port 80 (only plain HTTP is required at this point).  Assuming your web server's document root path is `/let/www/html` issue this command:
+We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) method for authorization.  Make sure you have a web server running on your server and listening on port 80 (only plain HTTP is required at this point).  Assuming your web server's document root path is `/var/www/html` issue this command:
 
 ```sh
-/usr/local/bin/certbot-auto certonly --webroot -w /let/www/html -d mydomain.com
+/usr/local/bin/certbot-auto certonly --webroot -w /var/www/html -d mydomain.com
 ```
 
 If you need certificates for multiple subdomains, you can repeat the `-d` flag, e.g. `-d mydomain.com -d www.mydomain.com`.
@@ -1874,7 +1874,7 @@ Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily 
 /usr/local/bin/certbot-auto renew --post-hook "/opt/myapp/bin/control.sh restart" >/dev/null 2>&1
 ```
 
-Certbot produces its own log file here: `/let/log/letsencrypt/letsencrypt.log`
+Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
 
 ## Request Max Dump
 
@@ -1888,11 +1888,11 @@ To enable this feature, set the [http_req_max_dump_enabled](#http_req_max_dump_e
 
 ```json
 "http_req_max_dump_enabled": true,
-"http_req_max_dump_dir": "/let/log/web-server-dumps",
+"http_req_max_dump_dir": "/var/log/web-server-dumps",
 "http_req_max_dump_debounce": 10
 ```
 
-This would generate dump files in the `/let/log/web-server-dumps` directory every 10 seconds, while one or more maximum limits are maxed out.
+This would generate dump files in the `/var/log/web-server-dumps` directory every 10 seconds, while one or more maximum limits are maxed out.
 
 The dump files themselves are in JSON format, and contain everything from the [Stats API](#stats), as well as a list of all active and pending requests.  For each request, an object like the following is provided:
 
