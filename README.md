@@ -60,6 +60,8 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_req_max_dump_debounce](#http_req_max_dump_debounce)
 	* [http_public_ip_offset](#http_public_ip_offset)
 	* [http_legacy_callback_support](#http_legacy_callback_support)
+	* [http_startup_message](#http_startup_message)
+	* [http_debug_ttl](#http_debug_ttl)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_alt_ports](#https_alt_ports)
@@ -743,6 +745,24 @@ This adds support for legacy applications, which require JSONP callback-style AP
 ```
 
 Only enable this if you are supporting a legacy application which is hosted on a private, trusted network.
+
+## http_startup_message
+
+When set to `true` and running in debug or foreground mode (i.e. `--debug` or `--foreground` CLI flags on startup), this will emit a message to the console on startup detailing all the socket listeners, ports, and URL endpoints you can hit.  Example conaole message:
+
+```
+Web Server Listeners:
+
+	Listening for HTTP on port 3020, network '::' (all)
+	--> http://192.168.3.25:3020/
+
+	Listening for HTTPS on port 3021, network '::' (all)
+	--> https://192.168.3.25:3021/
+```
+
+## http_debug_ttl
+
+When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [http_static_ttl](#http_static_ttl) with `0`.  Useful for local development, i.e. reloading your web app in the browser.
 
 ## https
 

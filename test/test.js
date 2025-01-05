@@ -30,8 +30,7 @@ var server = new PixlServer({
 		"log_dir": __dirname,
 		"log_filename": "test.log",
 		"debug_level": 9,
-		"foreground": 1,
-		"quiet": 1,
+		"debug": 1,
 		"echo": 0,
 		
 		"WebServer": {

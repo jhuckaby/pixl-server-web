@@ -115,7 +115,7 @@ class WebServer extends Component {
 		this.server.on( 'tick', this.tick.bind(this) );
 		
 		// show post-startup foreground console message if applicable
-		if ((this.server.debug || this.server.foreground) && !this.server.config.get('quiet')) {
+		if ((this.server.debug || this.server.foreground) && this.config.get('http_startup_message')) {
 			// add a slight delay to increase chances of user seeing it in the console
 			this.server.on('ready', function() { setTimeout( self.postStartupMessage.bind(self), 250 ); } );
 		}
@@ -256,7 +256,7 @@ class WebServer extends Component {
 		this.httpsAllowHosts = (this.config.get('https_allow_hosts') || this.config.get('http_allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
 		
 		// set static TTL to 0 in debug mode
-		if (this.server.debug) {
+		if (this.server.debug && this.config.get('http_debug_ttl')) {
 			this.logDebug(5, "Setting static TTL to 0 for debug mode");
 			this.config.set('http_static_ttl', 0);
 		}
