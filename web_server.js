@@ -115,7 +115,7 @@ class WebServer extends Component {
 		this.server.on( 'tick', this.tick.bind(this) );
 		
 		// show post-startup foreground console message if applicable
-		if (this.server.debug || this.server.foreground) {
+		if ((this.server.debug || this.server.foreground) && !this.server.config.get('quiet')) {
 			// add a slight delay to increase chances of user seeing it in the console
 			this.server.on('ready', function() { setTimeout( self.postStartupMessage.bind(self), 250 ); } );
 		}
