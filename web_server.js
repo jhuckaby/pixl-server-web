@@ -114,6 +114,12 @@ class WebServer extends Component {
 		// listen for tick events to swap stat buffers
 		this.server.on( 'tick', this.tick.bind(this) );
 		
+		// show post-startup foreground console message if applicable
+		if (this.server.debug || this.server.foreground) {
+			// add a slight delay to increase chances of user seeing it in the console
+			this.server.on('ready', function() { setTimeout( self.postStartupMessage.bind(self), 250 ); } );
+		}
+		
 		// start listeners
 		this.startAll(callback);
 	}
@@ -256,6 +262,45 @@ class WebServer extends Component {
 		}
 	}
 	
+	postStartupMessage() {
+		// show startup message in console (debug / foreground only)
+		var self = this;
+		var stats = this.getStats();
+		var text = '';
+		
+		text += "\nWeb Server Listeners:\n";
+		
+		stats.listeners.forEach( function(info) {
+			// {"address":"::1","family":"IPv6","port":3013,"ssl":true}
+			var type = info.ssl ? 'HTTPS' : 'HTTP';
+			var host = info.address;
+			text += `\n\tListening for ${type} on port ${info.port}, network '${info.address}'`;
+			
+			switch (info.address) {
+				case '::1':
+				case '127.0.0.1':
+					text += ' (localhost)';
+					host = 'localhost';
+				break;
+				
+				case '::':
+				case '0.0.0.0':
+					text += ' (all)';
+					host = self.server.ip; // best guess (ipv4)
+				break;
+			}
+			
+			text += "\n";
+			var url = (info.ssl ? 'https://' : 'http://') + host;
+			if (info.ssl && (info.port != 443)) url += ':' + info.port;
+			if (!info.ssl & (info.port != 80)) url += ':' + info.port;
+			url += '/';
+			text += "\t--> " + url + "\n";
+		} );
+		
+		console.log(text);
+	}
+	
 	startAll(callback) {
 		// start all HTTP(s) listeners
 		var self = this;
@@ -352,7 +397,9 @@ class WebServer extends Component {
 		var num_sockets = 0;
 		
 		listener_info = this.listeners.map( function(listener) {
-			return listener.address();
+			var info = listener.address() || { port: 'n/a' };
+			if (listener.setSecureContext) info.ssl = true;
+			return info;
 		} );
 		
 		for (var key in this.conns) {
@@ -399,11 +446,6 @@ class WebServer extends Component {
 			}
 		}
 		
-		var ports = [ this.config.get('http_port') ];
-		if (this.config.get('https')) {
-			ports.push( this.config.get('https_port') );
-		}
-		
 		return {
 			server: {
 				uptime_sec: Math.floor(now / 1000) - this.server.started,
@@ -411,7 +453,7 @@ class WebServer extends Component {
 				ip: this.server.ip,
 				name: this.server.__name,
 				version: this.server.__version,
-				ports: ports
+				ports: listener_info.map( function(info) { return info.port; } )
 			},
 			stats: stats,
 			listeners: listener_info,
@@ -549,7 +591,8 @@ class WebServer extends Component {
 			// close all listeners
 			this.listeners.forEach( function(listener) {
 				var info = listener.address() || { port: 'n/a' };
-				listener.close( function() { self.logDebug(3, "HTTP server on port " + info.port + " has shut down.", info); } );
+				if (listener.setSecureContext) info.ssl = true;
+				listener.close( function() { self.logDebug(3, (info.ssl ? "HTTPS": "HTTP") + " server on port " + info.port + " has shut down.", info); } );
 			} );
 			
 			this.requests = {};
