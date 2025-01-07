@@ -72,6 +72,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [https_header_detect](#https_header_detect)
 	* [https_timeout](#https_timeout)
 	* [https_bind_address](#https_bind_address)
+	* [https_cert_poll_ms](#https_cert_poll_ms)
 - [Custom URI Handlers](#custom-uri-handlers)
 	* [Access Control Lists](#access-control-lists)
 	* [Internal File Redirects](#internal-file-redirects)
@@ -768,6 +769,8 @@ When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup
 
 This boolean allows you to enable HTTPS (SSL) support in the web server.  It defaults to `false`.  Note that you must also set `https_port`, and possibly `https_cert_file` and `https_key_file` for this to work.
 
+The SSL certificate files are automatically reloaded if changed on disk.  This is done without a server restart.
+
 ## https_port
 
 If HTTPS mode is enabled, this is the port to listen on for secure requests.  The standard HTTPS port is 443.
@@ -839,6 +842,10 @@ Optionally specify an exact local IP address to bind the HTTPS listener to.  By 
 ```
 
 This example would cause the server to only listen on localhost for plain HTTP traffic, but listen on *all* network interfaces for HTTPS traffic.
+
+## https_cert_poll_ms
+
+The `https_cert_poll_ms` property allows you to customize the polling interval for monitoring the SSL cert files on disk.  The value is in milliseconds, and defaults to `60000` (1 minute).  This is used to poll the SSL cert files on disk to see if they changed (i.e. cert renewal).  If so, they are automatically reloaded without restarting the server.
 
 # Custom URI Handlers
 

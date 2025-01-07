@@ -70,7 +70,8 @@ module.exports = Class({
 		"http_req_max_dump_dir": "",
 		"http_req_max_dump_debounce": 10,
 		"http_code_response_headers": null,
-		"http_legacy_callback_support": false
+		"http_legacy_callback_support": false,
+		"https_cert_poll_ms": 60000
 	},
 	
 	conns: null,
@@ -322,6 +323,9 @@ class WebServer extends Component {
 			(this.config.get('https_alt_ports') || []).forEach( function(port) {
 				tasks.push([ port, 'startHTTPS' ]);
 			} );
+			
+			// load certs and setup monitoring
+			this.setupHTTPS();
 		}
 		
 		// start all listeners in parallel
