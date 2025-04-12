@@ -62,6 +62,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_legacy_callback_support](#http_legacy_callback_support)
 	* [http_startup_message](#http_startup_message)
 	* [http_debug_ttl](#http_debug_ttl)
+	* [http_debug_bind_local](#http_debug_bind_local)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_alt_ports](#https_alt_ports)
@@ -764,6 +765,14 @@ Web Server Listeners:
 ## http_debug_ttl
 
 When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [http_static_ttl](#http_static_ttl) with `0`.  Useful for local development, i.e. reloading your web app in the browser.
+
+This feature defaults to `false` (disabled).
+
+## http_debug_bind_local
+
+When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [http_bind_address](#http_bind_address) with `localhost`.  This will keep your local development environment secure, and not exposed to the network.  To override this behavior, add an `--expose` CLI flag or explicitly set the `http_bind_address` in your config.
+
+This feature defaults to `false` (disabled).
 
 ## https
 

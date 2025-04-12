@@ -261,6 +261,12 @@ class WebServer extends Component {
 			this.logDebug(5, "Setting static TTL to 0 for debug mode");
 			this.config.set('http_static_ttl', 0);
 		}
+		
+		// default bind addr to localhost in debug mode
+		if (this.server.debug && !this.config.get('http_bind_address') && !this.config.get('expose') && this.config.get('http_debug_bind_local')) {
+			this.logDebug(5, "Setting bind address to localhost for debug mode");
+			this.config.set('http_bind_address', 'localhost');
+		}
 	}
 	
 	postStartupMessage() {
