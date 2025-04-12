@@ -263,7 +263,7 @@ class WebServer extends Component {
 		}
 		
 		// default bind addr to localhost in debug mode
-		if (this.server.debug && !this.config.get('http_bind_address') && !this.config.get('expose') && this.config.get('http_debug_bind_local')) {
+		if (this.server.debug && !this.config.get('http_bind_address') && !this.server.config.get('expose') && this.config.get('http_debug_bind_local')) {
 			this.logDebug(5, "Setting bind address to localhost for debug mode");
 			this.config.set('http_bind_address', 'localhost');
 		}
