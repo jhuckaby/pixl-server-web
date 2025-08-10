@@ -98,6 +98,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 		+ [args.perf](#argsperf)
 		+ [args.server](#argsserver)
 		+ [args.id](#argsid)
+		+ [args.setCookie](#argssetcookie)
 	* [Request Filters](#request-filters)
 - [Transaction Logging](#transaction-logging)
 	* [Request Detail Logging](#request-detail-logging)
@@ -1165,6 +1166,14 @@ This is a reference to the pixl-server object which handled the request.
 ### args.id
 
 This is an internal ID string used by the server to track and log individual requests.
+
+### args.setCookie
+
+A utility function used to serialize cookies into the proper format, and set or append them to the `Set-Cookie` response header.  It accepts a name, a value, and an optional set of options.  Example use:
+
+```js
+args.setCookie( 'session', 'ABDEF01234567890', { path: '/', maxAge: 86400, secure: true, httpOnly: true, sameSite: 'Lax' } );
+```
 
 ## Request Filters
 
