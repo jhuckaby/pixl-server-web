@@ -21,6 +21,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [http_regex_json](#http_regex_json)
 	* [http_response_headers](#http_response_headers)
 	* [http_code_response_headers](#http_code_response_headers)
+	* [http_uri_response_headers](#http_uri_response_headers)
 	* [http_timeout](#http_timeout)
 	* [http_request_timeout](#http_request_timeout)
 	* [http_keep_alives](#http_keep_alives)
@@ -251,7 +252,7 @@ This is a regular expression string used to determine if the incoming POST reque
 
 ## http_response_headers
 
-This param allows you to send back any additional custom HTTP headers with each response.  Set the param to an object containing keys for each header, like this:
+This param allows you to send back additional custom HTTP headers with *every* response.  Set the param to an object containing keys for each header, like this:
 
 ```json
 {
@@ -289,6 +290,36 @@ An actual useful case would be to include a [Retry-After](https://developer.mozi
 ```
 
 This would give a hint to clients when they receive a `429` (Too Many Requests) response from the web server, that they should wait `10` seconds before trying again.
+
+## http_uri_response_headers
+
+This property allows you to include *conditional* response headers, based on regular expression matches on incoming request URIs.  You may specify multiple patterns, and multiple headers to inject for each URI match.  For example, you can instruct the web server to send back custom headers for a specific URI prefix, like this:
+
+```json
+{
+	"http_uri_response_headers": {
+		"^/secret": {
+			"X-Message": "You found the secret area!",
+			"X-Foo": "Bar"
+		}
+	}
+}
+```
+
+An actual useful case would be to include a set of [CSP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) for all HTML files, and URIs that end in a slash (which typically present an HTML file).  Example:
+
+```json
+{
+	"http_uri_response_headers": {
+		"(\/|\\.html)$": {
+			"Content-Security-Policy": "default-src 'none'; script-src 'self'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; manifest-src 'self';img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';",
+			"X-Content-Type-Options": "nosniff",
+			"Referrer-Policy": "strict-origin-when-cross-origin",
+			"Permissions-Policy": "camera=(), microphone=(), geolocation=(), fullscreen=()"
+		}
+	}
+}
+```
 
 ## http_timeout
 

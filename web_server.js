@@ -267,6 +267,19 @@ class WebServer extends Component {
 			this.logDebug(5, "Setting bind address to localhost for debug mode");
 			this.config.set('http_bind_address', 'localhost');
 		}
+		
+		// pre-compile regexps for http_uri_response_headers
+		this.uriResponseHeaders = [];
+		var patterns = this.config.get('http_uri_response_headers');
+		if (patterns) {
+			for (var pat in patterns) {
+				this.logDebug(5, "Adding custom response headers for URI pattern: " + pat, patterns[pat]);
+				this.uriResponseHeaders.push({
+					regexp: new RegExp(pat),
+					headers: patterns[pat]
+				});
+			}
+		}
 	}
 	
 	postStartupMessage() {
