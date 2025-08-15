@@ -429,7 +429,7 @@ module.exports = {
 			request.json( 'http://127.0.0.1:3020/json', false,
 				{
 					headers: {
-						'Cookie': "COOKIE1=foo1234; COOKIE2=bar5678;",
+						'Cookie': "COOKIE1=foo1234; COOKIE2=bar=5678;",
 						'X-Test': "Test"
 					}
 				},
@@ -445,7 +445,40 @@ module.exports = {
 					
 					test.ok( !!json.cookies, "Found cookies in JSON response" );
 					test.ok( json.cookies.COOKIE1 == "foo1234", "Correct COOKIE1 value" );
-					test.ok( json.cookies.COOKIE2 == "bar5678", "Correct COOKIE2 value" );
+					test.ok( json.cookies.COOKIE2 == "bar=5678", "Correct COOKIE2 value" );
+					
+					// request headers will be echoed back
+					test.ok( !!json.headers, "Found headers echoed in JSON response" );
+					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
+					
+					test.done();
+				} 
+			);
+		},
+		
+		// Bad Cookies in request
+		function testBadCookieRequest(test) {
+			// test simple HTTP GET request with cookies
+			request.json( 'http://127.0.0.1:3020/json', false,
+				{
+					headers: {
+						'Cookie': "COOKIE1=foo1234; COOKIE2=bar5678%E0%A4%A;",
+						'X-Test': "Test"
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( resp.headers['via'] == "WebServerTest 1.0", "Correct Via header: " + resp.headers['via'] );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( !!json.user, "Found user object in JSON response" );
+					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					test.ok( !!json.cookies, "Found cookies in JSON response" );
+					test.ok( json.cookies.COOKIE1 == "foo1234", "Correct COOKIE1 value" );
+					test.ok( !json.cookies.COOKIE2, "Expected missing COOKIE2 value" );
 					
 					// request headers will be echoed back
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
