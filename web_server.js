@@ -47,6 +47,7 @@ module.exports = Class({
 		"enable_brotli": false,
 		"default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
 		"blacklist": [],
+		"whitelist": [],
 		"allow_hosts": [],
 		"log_requests": false,
 		"log_request_details": false,
@@ -133,6 +134,7 @@ class WebServer extends Component {
 			if (key.match(/^(http_)(\w+)$/)) this.config.set( RegExp.$2, this.config.get(key) );
 		}
 		
+		// setup default acl
 		try { 
 			this.defaultACL = new ACL( this.config.get('default_acl') ); 
 		}
@@ -141,7 +143,7 @@ class WebServer extends Component {
 			this.defaultACL = new ACL();
 		}
 		
-		// blacklist
+		// setup blacklist
 		delete this.aclBlacklist;
 		var blacklist = this.config.get('blacklist');
 		if (blacklist && blacklist.length) {
@@ -149,6 +151,15 @@ class WebServer extends Component {
 			catch (err) { this.logError('acl', "Failed to initialize blacklist: " + err); }
 		}
 		
+		// setup whitelist
+		delete this.aclWhitelist;
+		var whitelist = this.config.get('whitelist');
+		if (whitelist && whitelist.length) {
+			try { this.aclWhitelist = new ACL( whitelist ); }
+			catch (err) { this.logError('acl', "Failed to initialize whitelist: " + err); }
+		}
+		
+		// setup private range matcher
 		try {
 			this.aclPrivateRanges = new ACL( this.config.get('private_ip_ranges') );
 		}
@@ -157,6 +168,7 @@ class WebServer extends Component {
 			this.aclPrivateRanges = new ACL();
 		}
 		
+		// pre-compute some config values
 		this.regexTextContent = new RegExp( this.config.get('regex_text'), "i" );
 		this.regexJSONContent = new RegExp( this.config.get('regex_json'), "i" );
 		this.logRequests = this.config.get('log_requests');

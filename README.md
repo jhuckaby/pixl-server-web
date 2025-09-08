@@ -477,7 +477,23 @@ To customize it, specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) 
 
 This example would reject all incoming IP addresses from Apple and AT&T (who own the `17.0.0.0/8` and `12.0.0.0/8` IPv4 blocks, respectively).
 
-When a new incoming connection is established, the socket IP is immediately checked against the blacklist, and if matched, the socket is "hard closed".  This is an early detection and rejection, before the HTTP request even comes in.  In this case a HTTP response isn't sent back (as the socket is simply slammed shut).  However, if you are using a load balancer or proxy, the user's true IP address might not be known until later on in the request cycle, once the HTTP headers are read in.  At that point all the user's IPs are checked against the blacklist again, and if any of them match, a `HTTP 403 Forbidden` response is sent back.
+When a new incoming connection is established, the socket IP is immediately checked against the blacklist, and if matched, the socket is "hard closed".  This is an early detection and rejection, before the HTTP request even comes in.  In this case a HTTP response isn't sent back (as the socket is simply slammed shut).  However, if you are using a load balancer or proxy, the user's true IP address might not be known until later on in the request cycle, once the HTTP headers are read in.  At that point all the user's IPs are checked against the blacklist again, and if any of them match, a `HTTP 403 Forbidden` response is sent back to the client.
+
+## whitelist
+
+The `whitelist` property allows you to specify a list of IPs or IP ranges which are whitelisted.  Meaning, all requests must originate from these IPs, or else they are immediately rejected by the web server (see details below).  The format of the `whitelist` is the same as `default_acl` (see [Access Control Lists](#access-control-lists)).  It defaults to an empty list (i.e. disabled).
+
+To customize it, specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
+
+```json
+{
+	"whitelist": ["17.0.0.0/8", "12.0.0.0/8"]
+}
+```
+
+This example would reject all incoming IP addresses **unless* they were from Apple and AT&T (who own the `17.0.0.0/8` and `12.0.0.0/8` IPv4 blocks, respectively).
+
+When a new incoming connection is established, the socket IP is immediately checked against the whitelist, and if it doesn't match, the socket is "hard closed".  This is an early detection and rejection, before the HTTP request even comes in.  In this case a HTTP response isn't sent back (as the socket is simply slammed shut).  However, if you are using a load balancer or proxy, the user's true IP address might not be known until later on in the request cycle, once the HTTP headers are read in.  At that point all the user's IPs are checked against the whitelist again, and **any of them do not match**, a `HTTP 403 Forbidden` response is sent back to the client.
 
 ## allow_hosts
 
