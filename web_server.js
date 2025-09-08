@@ -141,12 +141,12 @@ class WebServer extends Component {
 			this.defaultACL = new ACL();
 		}
 		
-		try {
-			this.aclBlacklist = new ACL( this.config.get('blacklist') );
-		}
-		catch (err) {
-			this.logError('acl', "Failed to initialize blacklist: " + err);
-			this.aclBlacklist = new ACL();
+		// blacklist
+		delete this.aclBlacklist;
+		var blacklist = this.config.get('blacklist');
+		if (blacklist && blacklist.length) {
+			try { this.aclBlacklist = new ACL( blacklist ); }
+			catch (err) { this.logError('acl', "Failed to initialize blacklist: " + err); }
 		}
 		
 		try {
