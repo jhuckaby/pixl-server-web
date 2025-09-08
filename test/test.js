@@ -35,32 +35,32 @@ var server = new PixlServer({
 		"echo": 0,
 		
 		"WebServer": {
-			"http_port": 3020,
-			"http_alt_ports": [3120],
-			"http_htdocs_dir": __dirname,
-			"http_max_upload_size": 1024 * 10,
-			"http_static_ttl": 3600,
-			"http_static_index": "index.html",
-			"http_server_signature": "WebServerTest 1.0",
-			"http_compress_text": 1,
-			"http_enable_brotli": 1,
-			"http_timeout": 5,
-			"http_socket_prelim_timeout": 2,
-			"http_response_headers": {
+			"port": 3020,
+			"alt_ports": [3120],
+			"htdocs_dir": __dirname,
+			"max_upload_size": 1024 * 10,
+			"static_ttl": 3600,
+			"static_index": "index.html",
+			"server_signature": "WebServerTest 1.0",
+			"compress_text": 1,
+			"enable_brotli": 1,
+			"timeout": 5,
+			"socket_prelim_timeout": 2,
+			"response_headers": {
 				"Via": "WebServerTest 1.0"
 			},
 			
-			"http_log_requests": false,
-			"http_regex_log": ".+",
-			"http_recent_requests": 10,
-			"http_max_connections": 10,
+			"log_requests": false,
+			"regex_log": ".+",
+			"recent_requests": 10,
+			"max_connections": 10,
 			
-			"http_blacklist": ["5.6.7.0/24"],
+			"blacklist": ["5.6.7.0/24"],
 			
-			"http_rewrites": {
+			"rewrites": {
 				"^/rewrite(.*)$": "/json$1"
 			},
-			"http_redirects": {
+			"redirects": {
 				"^/disney": "https://disney.com/",
 				"^/pixar(.*)$": {
 					"url": "https://pixar.com$1",
@@ -386,7 +386,7 @@ module.exports = {
 		function testQueryStringFlatten(test) {
 			// test simple HTTP GET request with query string dupes flattened
 			var web = this.web_server;
-			web.config.set('http_flatten_query', true);
+			web.config.set('flatten_query', true);
 			
 			request.json( 'http://127.0.0.1:3020/json?foo=bar1234&baz=bop%20pog&animal=frog&animal=dog', false,
 				{
@@ -416,7 +416,7 @@ module.exports = {
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
 					
 					// revert our hot config change
-					web.config.set('http_flatten_query', false);
+					web.config.set('flatten_query', false);
 					
 					test.done();
 				} 
@@ -958,11 +958,11 @@ module.exports = {
 		function testBackEndTimeout(test) {
 			var self = this;
 			var web = this.web_server;
-			web.config.set('http_request_timeout', 0.5); // 500ms
+			web.config.set('request_timeout', 0.5); // 500ms
 			
 			request.get( 'http://127.0.0.1:3020/sleep?ms=750', {},
 				function(err, resp, data, perf) {
-					web.config.set('http_request_timeout', 0); // reset timeout
+					web.config.set('request_timeout', 0); // reset timeout
 					test.ok( !err, "Unexpected error from PixlRequest: " + err );
 					test.ok( resp.statusCode == 408, "Unexpected HTTP response code: " + resp.statusCode );
 					test.done();
@@ -1403,7 +1403,7 @@ module.exports = {
 			); // async.whilst
 		},
 		
-		// http_max_connections
+		// max_connections
 		function testMaxConnections(test) {
 			// test going over max concurrent connections (10)
 			// this test is very perf and timing sensitive, may fail on overloaded or underpowered servers
@@ -1567,11 +1567,11 @@ module.exports = {
 			);
 		},
 		
-		// http_public_ip_offset
+		// public_ip_offset
 		function testForwardedForOffsetNeg1(test) {
 			var self = this;
 			var web = this.web_server;
-			web.config.set('http_public_ip_offset', -1);
+			web.config.set('public_ip_offset', -1);
 			
 			request.json( 'http://127.0.0.1:3020/json', false, 
 				{
@@ -1584,7 +1584,7 @@ module.exports = {
 					test.ok( !!resp, "Got resp from PixlRequest" );
 					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
 					test.ok( data.ip === "127.0.0.1", "Correct offset public IP in response: " + data.ip );
-					web.config.set('http_public_ip_offset', 0); // reset
+					web.config.set('public_ip_offset', 0); // reset
 					test.done();
 				} 
 			);
@@ -1592,7 +1592,7 @@ module.exports = {
 		function testForwardedForOffsetNeg2(test) {
 			var self = this;
 			var web = this.web_server;
-			web.config.set('http_public_ip_offset', -2);
+			web.config.set('public_ip_offset', -2);
 			
 			request.json( 'http://127.0.0.1:3020/json', false, 
 				{
@@ -1605,7 +1605,7 @@ module.exports = {
 					test.ok( !!resp, "Got resp from PixlRequest" );
 					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
 					test.ok( data.ip === "3.4.5.6", "Correct offset public IP in response: " + data.ip );
-					web.config.set('http_public_ip_offset', 0); // reset
+					web.config.set('public_ip_offset', 0); // reset
 					test.done();
 				} 
 			);
@@ -1613,7 +1613,7 @@ module.exports = {
 		function testForwardedForOffsetNeg3(test) {
 			var self = this;
 			var web = this.web_server;
-			web.config.set('http_public_ip_offset', -3);
+			web.config.set('public_ip_offset', -3);
 			
 			request.json( 'http://127.0.0.1:3020/json', false, 
 				{
@@ -1626,7 +1626,7 @@ module.exports = {
 					test.ok( !!resp, "Got resp from PixlRequest" );
 					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
 					test.ok( data.ip === "2.3.4.5", "Correct offset public IP in response: " + data.ip );
-					web.config.set('http_public_ip_offset', 0); // reset
+					web.config.set('public_ip_offset', 0); // reset
 					test.done();
 				} 
 			);
@@ -1718,7 +1718,7 @@ module.exports = {
 			var self = this;
 			var web = this.web_server;
 			
-			web.config.set('http_code_response_headers', {
+			web.config.set('code_response_headers', {
 				"403": { 'X-Test-Cond': "Tree Frogs" }
 			});
 			
@@ -1741,7 +1741,7 @@ module.exports = {
 							test.ok( !!resp, "Got resp from PixlRequest" );
 							test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
 							test.ok( !resp.headers['x-test-cond'], "Unexpected X-Test-Cond header for HTTP 200!" );
-							web.config.set('http_code_response_headers', null); // reset config
+							web.config.set('code_response_headers', null); // reset config
 							test.done();
 						}
 					);
@@ -2089,7 +2089,7 @@ module.exports = {
 			); // async.whilst
 		},
 		
-		// http_max_concurrent_requests
+		// max_concurrent_requests
 		function testMaxConcurrentRequests(test) {
 			// test going over max concurrent requests, remainder should be queued
 			var self = this;

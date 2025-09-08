@@ -25,52 +25,52 @@ module.exports = Class({
 	version: require( __dirname + '/package.json' ).version,
 	
 	defaultConfig: {
-		"http_private_ip_ranges": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
-		"http_regex_text": "(text|javascript|json|css|html)",
-		"http_regex_json": "(javascript|js|json)",
-		"http_keep_alives": "default",
-		"http_timeout": 120,
-		"http_static_index": "index.html",
-		"http_static_ttl": 0,
-		"http_max_upload_size": 32 * 1024 * 1024,
-		"http_temp_dir": os.tmpdir(),
-		"http_gzip_opts": {
+		"private_ip_ranges": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
+		"regex_text": "(text|javascript|json|css|html)",
+		"regex_json": "(javascript|js|json)",
+		"keep_alives": "default",
+		"timeout": 120,
+		"static_index": "index.html",
+		"static_ttl": 0,
+		"max_upload_size": 32 * 1024 * 1024,
+		"temp_dir": os.tmpdir(),
+		"gzip_opts": {
 			"level": zlib.constants.Z_DEFAULT_COMPRESSION, 
 			"memLevel": 8 
 		},
-		"http_brotli_opts": {
+		"brotli_opts": {
 			"chunkSize": 16 * 1024,
 			"mode": "text",
 			"level": 4
 		},
-		"http_compress_text": false,
-		"http_enable_brotli": false,
-		"http_default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
-		"http_blacklist": [],
-		"http_allow_hosts": [],
-		"http_log_requests": false,
-		"http_log_request_details": false,
-		"http_log_body_max": 32768,
-		"http_log_perf": false,
-		"http_perf_threshold_ms": 100,
-		"http_perf_report": false,
-		"http_recent_requests": 10,
-		"http_max_connections": 0,
-		"http_max_requests_per_connection": 0,
-		"http_max_concurrent_requests": 0,
-		"http_max_queue_length": 0,
-		"http_max_queue_active": 0,
-		"http_queue_skip_uri_match": false,
-		"http_clean_headers": false,
-		"http_log_socket_errors": true,
-		"http_full_uri_match": false,
-		"http_flatten_query": false,
-		"http_request_timeout": 0,
-		"http_req_max_dump_enabled": false,
-		"http_req_max_dump_dir": "",
-		"http_req_max_dump_debounce": 10,
-		"http_code_response_headers": null,
-		"http_legacy_callback_support": false,
+		"compress_text": false,
+		"enable_brotli": false,
+		"default_acl": ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fd00::/8', '169.254.0.0/16', 'fe80::/10'],
+		"blacklist": [],
+		"allow_hosts": [],
+		"log_requests": false,
+		"log_request_details": false,
+		"log_body_max": 32768,
+		"log_perf": false,
+		"perf_threshold_ms": 100,
+		"perf_report": false,
+		"recent_requests": 10,
+		"max_connections": 0,
+		"max_requests_per_connection": 0,
+		"max_concurrent_requests": 0,
+		"max_queue_length": 0,
+		"max_queue_active": 0,
+		"queue_skip_uri_match": false,
+		"clean_headers": false,
+		"log_socket_errors": true,
+		"full_uri_match": false,
+		"flatten_query": false,
+		"request_timeout": 0,
+		"req_max_dump_enabled": false,
+		"req_max_dump_dir": "",
+		"req_max_dump_debounce": 10,
+		"code_response_headers": null,
+		"legacy_callback_support": false,
 		"https_cert_poll_ms": 60000
 	},
 	
@@ -116,7 +116,7 @@ class WebServer extends Component {
 		this.server.on( 'tick', this.tick.bind(this) );
 		
 		// show post-startup foreground console message if applicable
-		if ((this.server.debug || this.server.foreground) && this.config.get('http_startup_message')) {
+		if ((this.server.debug || this.server.foreground) && this.config.get('startup_message')) {
 			// add a slight delay to increase chances of user seeing it in the console
 			this.server.on('ready', function() { setTimeout( self.postStartupMessage.bind(self), 250 ); } );
 		}
@@ -127,8 +127,14 @@ class WebServer extends Component {
 	
 	prepConfig() {
 		// prep config at startup, and when config is hot reloaded
+		
+		// support old config format with `http_` prefixed keys
+		for (var key in this.config.get()) {
+			if (key.match(/^(http_)(\w+)$/)) this.config.set( RegExp.$2, this.config.get(key) );
+		}
+		
 		try { 
-			this.defaultACL = new ACL( this.config.get('http_default_acl') ); 
+			this.defaultACL = new ACL( this.config.get('default_acl') ); 
 		}
 		catch (err) {
 			this.logError('acl', "Failed to initialize default ACL: " + err);
@@ -136,7 +142,7 @@ class WebServer extends Component {
 		}
 		
 		try {
-			this.aclBlacklist = new ACL( this.config.get('http_blacklist') );
+			this.aclBlacklist = new ACL( this.config.get('blacklist') );
 		}
 		catch (err) {
 			this.logError('acl', "Failed to initialize blacklist: " + err);
@@ -144,33 +150,33 @@ class WebServer extends Component {
 		}
 		
 		try {
-			this.aclPrivateRanges = new ACL( this.config.get('http_private_ip_ranges') );
+			this.aclPrivateRanges = new ACL( this.config.get('private_ip_ranges') );
 		}
 		catch (err) {
 			this.logError('acl', "Failed to initialize private range ACL: " + err);
 			this.aclPrivateRanges = new ACL();
 		}
 		
-		this.regexTextContent = new RegExp( this.config.get('http_regex_text'), "i" );
-		this.regexJSONContent = new RegExp( this.config.get('http_regex_json'), "i" );
-		this.logRequests = this.config.get('http_log_requests');
-		this.logRequestDetails = this.config.get('http_log_request_details');
-		this.logRequestBodyMax = this.config.get('http_log_body_max');
-		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('http_regex_log') || '.+' )) : null;
-		this.logPerfEnabled = this.config.get('http_log_perf');
-		this.logPerfThreshold = this.config.get('http_perf_threshold_ms');
-		this.logPerfReport = this.config.get('http_perf_report');
-		this.keepRecentRequests = this.config.get('http_recent_requests');
+		this.regexTextContent = new RegExp( this.config.get('regex_text'), "i" );
+		this.regexJSONContent = new RegExp( this.config.get('regex_json'), "i" );
+		this.logRequests = this.config.get('log_requests');
+		this.logRequestDetails = this.config.get('log_request_details');
+		this.logRequestBodyMax = this.config.get('log_body_max');
+		this.regexLogRequests = this.logRequests ? (new RegExp( this.config.get('regex_log') || '.+' )) : null;
+		this.logPerfEnabled = this.config.get('log_perf');
+		this.logPerfThreshold = this.config.get('perf_threshold_ms');
+		this.logPerfReport = this.config.get('perf_report');
+		this.keepRecentRequests = this.config.get('recent_requests');
 		
 		// optionally compress text
-		this.compressText = this.config.get('http_compress_text') || this.config.get('http_gzip_text');
+		this.compressText = this.config.get('compress_text') || this.config.get('gzip_text');
 		
 		// brotli compression support
-		this.hasBrotli = !!zlib.BrotliCompress && this.config.get('http_enable_brotli');
+		this.hasBrotli = !!zlib.BrotliCompress && this.config.get('enable_brotli');
 		this.acceptEncodingMatch = this.hasBrotli ? /\b(gzip|deflate|br)\b/i : /\b(gzip|deflate)\b/i;
 		
 		// map friendly keys to brotli constants
-		var brotli_opts = this.config.get('http_brotli_opts');
+		var brotli_opts = this.config.get('brotli_opts');
 		if ("mode" in brotli_opts) {
 			switch (brotli_opts.mode) {
 				case 'text': brotli_opts.mode = zlib.constants.BROTLI_MODE_TEXT; break;
@@ -193,20 +199,20 @@ class WebServer extends Component {
 		}
 		
 		// keep-alives
-		this.keepAlives = this.config.get('http_keep_alives');
+		this.keepAlives = this.config.get('keep_alives');
 		if (this.keepAlives === false) this.keepAlives = 0;
 		else if (this.keepAlives === true) this.keepAlives = 1;
 		
 		// optional max requests per KA connection
-		this.maxReqsPerConn = this.config.get('http_max_requests_per_connection');
-		this.maxQueueLength = this.config.get('http_max_queue_length');
-		this.maxQueueActive = this.config.get('http_max_queue_active');
+		this.maxReqsPerConn = this.config.get('max_requests_per_connection');
+		this.maxQueueLength = this.config.get('max_queue_length');
+		this.maxQueueActive = this.config.get('max_queue_active');
 		
 		// NOTE: changing maxConcurrentReqs at runtime has no effect
-		this.maxConcurrentReqs = this.config.get('http_max_concurrent_requests') || this.config.get('http_max_connections');
+		this.maxConcurrentReqs = this.config.get('max_concurrent_requests') || this.config.get('max_connections');
 		
-		this.queueSkipMatch = this.config.get('http_queue_skip_uri_match') ? 
-			new RegExp( this.config.get('http_queue_skip_uri_match') ) : false;
+		this.queueSkipMatch = this.config.get('queue_skip_uri_match') ? 
+			new RegExp( this.config.get('queue_skip_uri_match') ) : false;
 		
 		// front-end https header detection
 		var ssl_headers = this.config.get('https_header_detect');
@@ -219,9 +225,9 @@ class WebServer extends Component {
 		else delete this.ssl_header_detect;
 		
 		// initialize request max dump system, if enabled
-		this.reqMaxDumpEnabled = this.config.get('http_req_max_dump_enabled');
-		this.reqMaxDumpDir = this.config.get('http_req_max_dump_dir');
-		this.reqMaxDumpDebounce = this.config.get('http_req_max_dump_debounce');
+		this.reqMaxDumpEnabled = this.config.get('req_max_dump_enabled');
+		this.reqMaxDumpDir = this.config.get('req_max_dump_dir');
+		this.reqMaxDumpDebounce = this.config.get('req_max_dump_debounce');
 		this.reqMaxDumpLast = 0;
 		
 		if (this.reqMaxDumpEnabled && this.reqMaxDumpDir && !fs.existsSync(this.reqMaxDumpDir)) {
@@ -230,8 +236,8 @@ class WebServer extends Component {
 		
 		// url rewrites
 		this.rewrites = [];
-		if (this.config.get('http_rewrites')) {
-			var rewrite_map = this.config.get('http_rewrites');
+		if (this.config.get('rewrites')) {
+			var rewrite_map = this.config.get('rewrites');
 			for (var key in rewrite_map) {
 				var rewrite = rewrite_map[key];
 				if (typeof(rewrite) == 'string') rewrite = { url: rewrite_map[key] };
@@ -242,8 +248,8 @@ class WebServer extends Component {
 		
 		// url redirects
 		this.redirects = [];
-		if (this.config.get('http_redirects')) {
-			var redir_map = this.config.get('http_redirects');
+		if (this.config.get('redirects')) {
+			var redir_map = this.config.get('redirects');
 			for (var key in redir_map) {
 				var redirect = redir_map[key];
 				if (typeof(redirect) == 'string') redirect = { url: redir_map[key] };
@@ -253,24 +259,24 @@ class WebServer extends Component {
 		}
 		
 		// custom host list
-		this.allowHosts = (this.config.get('http_allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
-		this.httpsAllowHosts = (this.config.get('https_allow_hosts') || this.config.get('http_allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
+		this.allowHosts = (this.config.get('allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
+		this.httpsAllowHosts = (this.config.get('https_allow_hosts') || this.config.get('allow_hosts') || []).map( function(host) { return host.toLowerCase(); } );
 		
 		// set static TTL to 0 in debug mode
-		if (this.server.debug && this.config.get('http_debug_ttl')) {
+		if (this.server.debug && this.config.get('debug_ttl')) {
 			this.logDebug(5, "Setting static TTL to 0 for debug mode");
-			this.config.set('http_static_ttl', 0);
+			this.config.set('static_ttl', 0);
 		}
 		
 		// default bind addr to localhost in debug mode
-		if (this.server.debug && !this.config.get('http_bind_address') && !this.server.config.get('expose') && this.config.get('http_debug_bind_local')) {
+		if (this.server.debug && !this.config.get('bind_address') && !this.server.config.get('expose') && this.config.get('debug_bind_local')) {
 			this.logDebug(5, "Setting bind address to localhost for debug mode");
-			this.config.set('http_bind_address', 'localhost');
+			this.config.set('bind_address', 'localhost');
 		}
 		
-		// pre-compile regexps for http_uri_response_headers
+		// pre-compile regexps for uri_response_headers
 		this.uriResponseHeaders = [];
-		var patterns = this.config.get('http_uri_response_headers');
+		var patterns = this.config.get('uri_response_headers');
 		if (patterns) {
 			for (var pat in patterns) {
 				this.logDebug(5, "Adding custom response headers for URI pattern: " + pat, patterns[pat]);
@@ -327,10 +333,10 @@ class WebServer extends Component {
 		var tasks = [];
 		
 		// always start plain HTTP on base port
-		tasks.push([ this.config.get('http_port'), 'startHTTP' ]);
+		tasks.push([ this.config.get('port'), 'startHTTP' ]);
 		
 		// optional additional ports
-		(this.config.get('http_alt_ports') || []).forEach( function(port) {
+		(this.config.get('alt_ports') || []).forEach( function(port) {
 			tasks.push([ port, 'startHTTP' ]);
 		} );
 		
@@ -522,7 +528,7 @@ class WebServer extends Component {
 	
 	getPublicIP(ips) {
 		// filter out garbage that doesn't resemble ips
-		var public_ip_offset = this.config.get('http_public_ip_offset') || 0;
+		var public_ip_offset = this.config.get('public_ip_offset') || 0;
 		
 		var real_ips = ips.filter( function(ip) {
 			return ip.match( /^([\d\.]+|[a-f0-9:]+)$/ );
@@ -558,8 +564,8 @@ class WebServer extends Component {
 			if (ssl && this.config.get('https_port') && (this.config.get('https_port') != 443)) {
 				url += ':' + this.config.get('https_port');
 			}
-			else if (!ssl && this.config.get('http_port') && (this.config.get('http_port') != 80)) {
-				url += ':' + this.config.get('http_port');
+			else if (!ssl && this.config.get('port') && (this.config.get('port') != 80)) {
+				url += ':' + this.config.get('port');
 			}
 		}
 		

@@ -7,63 +7,63 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 <!-- toc -->
 - [Usage](#usage)
 - [Configuration](#configuration)
-	* [http_port](#http_port)
-	* [http_alt_ports](#http_alt_ports)
-	* [http_bind_address](#http_bind_address)
-	* [http_htdocs_dir](#http_htdocs_dir)
-	* [http_max_upload_size](#http_max_upload_size)
-	* [http_temp_dir](#http_temp_dir)
-	* [http_static_ttl](#http_static_ttl)
-	* [http_static_index](#http_static_index)
-	* [http_server_signature](#http_server_signature)
-	* [http_compress_text](#http_compress_text)
-	* [http_regex_text](#http_regex_text)
-	* [http_regex_json](#http_regex_json)
-	* [http_response_headers](#http_response_headers)
-	* [http_code_response_headers](#http_code_response_headers)
-	* [http_uri_response_headers](#http_uri_response_headers)
-	* [http_timeout](#http_timeout)
-	* [http_request_timeout](#http_request_timeout)
-	* [http_keep_alives](#http_keep_alives)
+	* [port](#port)
+	* [alt_ports](#alt_ports)
+	* [bind_address](#bind_address)
+	* [htdocs_dir](#htdocs_dir)
+	* [max_upload_size](#max_upload_size)
+	* [temp_dir](#temp_dir)
+	* [static_ttl](#static_ttl)
+	* [static_index](#static_index)
+	* [server_signature](#server_signature)
+	* [compress_text](#compress_text)
+	* [regex_text](#regex_text)
+	* [regex_json](#regex_json)
+	* [response_headers](#response_headers)
+	* [code_response_headers](#code_response_headers)
+	* [uri_response_headers](#uri_response_headers)
+	* [timeout](#timeout)
+	* [request_timeout](#request_timeout)
+	* [keep_alives](#keep_alives)
 		+ [default](#default)
 		+ [request](#request)
 		+ [close](#close)
-	* [http_keep_alive_timeout](#http_keep_alive_timeout)
-	* [http_socket_prelim_timeout](#http_socket_prelim_timeout)
-	* [http_max_requests_per_connection](#http_max_requests_per_connection)
-	* [http_gzip_opts](#http_gzip_opts)
-	* [http_enable_brotli](#http_enable_brotli)
-	* [http_brotli_opts](#http_brotli_opts)
-	* [http_default_acl](#http_default_acl)
-	* [http_blacklist](#http_blacklist)
-	* [http_allow_hosts](#http_allow_hosts)
-	* [http_rewrites](#http_rewrites)
-	* [http_redirects](#http_redirects)
-	* [http_log_requests](#http_log_requests)
-	* [http_log_request_details](#http_log_request_details)
-	* [http_log_body_max](#http_log_body_max)
-	* [http_regex_log](#http_regex_log)
-	* [http_log_perf](#http_log_perf)
-	* [http_perf_threshold_ms](#http_perf_threshold_ms)
-	* [http_perf_report](#http_perf_report)
-	* [http_recent_requests](#http_recent_requests)
-	* [http_max_connections](#http_max_connections)
-	* [http_max_concurrent_requests](#http_max_concurrent_requests)
-	* [http_max_queue_length](#http_max_queue_length)
-	* [http_max_queue_active](#http_max_queue_active)
-	* [http_queue_skip_uri_match](#http_queue_skip_uri_match)
-	* [http_clean_headers](#http_clean_headers)
-	* [http_log_socket_errors](#http_log_socket_errors)
-	* [http_full_uri_match](#http_full_uri_match)
-	* [http_flatten_query](#http_flatten_query)
-	* [http_req_max_dump_enabled](#http_req_max_dump_enabled)
-	* [http_req_max_dump_dir](#http_req_max_dump_dir)
-	* [http_req_max_dump_debounce](#http_req_max_dump_debounce)
-	* [http_public_ip_offset](#http_public_ip_offset)
-	* [http_legacy_callback_support](#http_legacy_callback_support)
-	* [http_startup_message](#http_startup_message)
-	* [http_debug_ttl](#http_debug_ttl)
-	* [http_debug_bind_local](#http_debug_bind_local)
+	* [keep_alive_timeout](#keep_alive_timeout)
+	* [socket_prelim_timeout](#socket_prelim_timeout)
+	* [max_requests_per_connection](#max_requests_per_connection)
+	* [gzip_opts](#gzip_opts)
+	* [enable_brotli](#enable_brotli)
+	* [brotli_opts](#brotli_opts)
+	* [default_acl](#default_acl)
+	* [blacklist](#blacklist)
+	* [allow_hosts](#allow_hosts)
+	* [rewrites](#rewrites)
+	* [redirects](#redirects)
+	* [log_requests](#log_requests)
+	* [log_request_details](#log_request_details)
+	* [log_body_max](#log_body_max)
+	* [regex_log](#regex_log)
+	* [log_perf](#log_perf)
+	* [perf_threshold_ms](#perf_threshold_ms)
+	* [perf_report](#perf_report)
+	* [recent_requests](#recent_requests)
+	* [max_connections](#max_connections)
+	* [max_concurrent_requests](#max_concurrent_requests)
+	* [max_queue_length](#max_queue_length)
+	* [max_queue_active](#max_queue_active)
+	* [queue_skip_uri_match](#queue_skip_uri_match)
+	* [clean_headers](#clean_headers)
+	* [log_socket_errors](#log_socket_errors)
+	* [full_uri_match](#full_uri_match)
+	* [flatten_query](#flatten_query)
+	* [req_max_dump_enabled](#req_max_dump_enabled)
+	* [req_max_dump_dir](#req_max_dump_dir)
+	* [req_max_dump_debounce](#req_max_dump_debounce)
+	* [public_ip_offset](#public_ip_offset)
+	* [legacy_callback_support](#legacy_callback_support)
+	* [startup_message](#startup_message)
+	* [debug_ttl](#debug_ttl)
+	* [debug_bind_local](#debug_bind_local)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_alt_ports](#https_alt_ports)
@@ -144,8 +144,8 @@ let server = new PixlServer({
 		"debug_level": 9,
 		
 		"WebServer": {
-			"http_port": 80,
-			"http_htdocs_dir": "/var/www/html"
+			"port": 80,
+			"htdocs_dir": "/var/www/html"
 		}
 	},
 	
@@ -183,93 +183,93 @@ This example is a very simple web server configuration, which will listen on por
 
 The configuration for this component is set by passing in a `WebServer` key in the `config` element when constructing the `PixlServer` object, or, if a JSON configuration file is used, a `WebServer` object at the outermost level of the file structure.  It can contain the following keys:
 
-## http_port
+## port
 
 This is the main port to listen on.  The standard web port is 80, but note that only the root user can listen on ports below 1024.
 
-## http_alt_ports
+## alt_ports
 
 If you would like to have the server listen on additional ports, add them here as an array.  Example:
 
 ```json
 {
-	"http_port": 80,
-	"http_alt_ports": [ 3000, 8080 ]
+	"port": 80,
+	"alt_ports": [ 3000, 8080 ]
 }
 ```
 
-## http_bind_address
+## bind_address
 
 Optionally specify an exact local IP address to bind the listeners to.  By default this binds to all available addresses on the machine.  Example:
 
 ```json
 {
-	"http_bind_address": "127.0.0.1"
+	"bind_address": "127.0.0.1"
 }
 ```
 
 This example would cause the server to *only* listen on localhost, and not any external network interface.
 
-## http_htdocs_dir
+## htdocs_dir
 
 This is the path to the directory to serve static files out of, e.g. `/var/www/html`.
 
-## http_max_upload_size
+## max_upload_size
 
 This is the maximum allowed upload size.  If uploading files, this is a per-file limit.  If submitting raw data, this is an overall POST content limit.  The default is 32MB.
 
-## http_temp_dir
+## temp_dir
 
 This is where file uploads will be stored temporarily, until they are renamed or deleted.  If omitted, this defaults to the operating system's temp directory, as returned from `os.tmpDir()`.
 
-## http_static_ttl
+## static_ttl
 
 This is the TTL (time to live) value to pass on the `Cache-Control` response header.  This causes static files to be cached for a number of seconds.  The default is 0 seconds.
 
-## http_static_index
+## static_index
 
 This sets the filename to look for when directories are requested.  It defaults to `index.html`.
 
-## http_server_signature
+## server_signature
 
 This is a string to send back to the client with every request, as the `Server` HTTP response header.  This is typically used to declare the web server software being used.  The default is `WebServer`.
 
-## http_compress_text
+## compress_text
 
-This is a boolean indicating whether or not to compress text responses using [zlib](https://nodejs.org/api/zlib.html) software compression in Node.js.  The default is `false`.  The compression format is chosen automatically based on the `Accept-Encoding` request header sent from the client.  The supported formats are Brotli (see [http_enable_brotli](#http_enable_brotli)), Gzip and Deflate, chosen in that order.
+This is a boolean indicating whether or not to compress text responses using [zlib](https://nodejs.org/api/zlib.html) software compression in Node.js.  The default is `false`.  The compression format is chosen automatically based on the `Accept-Encoding` request header sent from the client.  The supported formats are Brotli (see [enable_brotli](#enable_brotli)), Gzip and Deflate, chosen in that order.
 
-You can force compression on an individual response basis, by including a `X-Compress: 1` response header in your URI handler code.  The web server will detect this outgoing header and force-enable compression on the data, regardless of the `http_compress_text` or `http_regex_text` settings.  Note that it still honors the client `Accept-Encoding` header, and will only enable compression if this request header is present and contains a supported scheme.
+You can force compression on an individual response basis, by including a `X-Compress: 1` response header in your URI handler code.  The web server will detect this outgoing header and force-enable compression on the data, regardless of the `compress_text` or `regex_text` settings.  Note that it still honors the client `Accept-Encoding` header, and will only enable compression if this request header is present and contains a supported scheme.
 
-**Note:** The legacy `http_gzip_text` property is still supported, and is now a shortcut for `http_compress_text`.
+**Note:** The legacy `gzip_text` property is still supported, and is now a shortcut for `compress_text`.
 
-## http_regex_text
+## regex_text
 
-This is a regular expression string which is compared against the `Content-Type` response header.  When this matches, and [http_compress_text](#http_compress_text) is enabled, this will kick in compression.  It defaults to `(text|javascript|json|css|html)`.
+This is a regular expression string which is compared against the `Content-Type` response header.  When this matches, and [compress_text](#compress_text) is enabled, this will kick in compression.  It defaults to `(text|javascript|json|css|html)`.
 
-## http_regex_json
+## regex_json
 
 This is a regular expression string used to determine if the incoming POST request contains JSON.  It is compared against the `Content-Type` request header.  The default is `(javascript|js|json)`.
 
-## http_response_headers
+## response_headers
 
 This param allows you to send back additional custom HTTP headers with *every* response.  Set the param to an object containing keys for each header, like this:
 
 ```json
 {
-	"http_response_headers": {
+	"response_headers": {
 		"X-My-Custom-Header": "12345",
 		"X-Another-Header": "Hello"
 	}
 }
 ```
 
-## http_code_response_headers
+## code_response_headers
 
 This property allows you to include *conditional* response headers, based on the HTTP response code.  For example, you can instruct the web server to send back a custom header with `404` (File Not Found) responses, like this:
 
 ```json
 {
-	"http_code_response_headers": {
+	"code_response_headers": {
 		"404": {
 			"X-Message": "And don't come back!"
 		}
@@ -281,7 +281,7 @@ An actual useful case would be to include a [Retry-After](https://developer.mozi
 
 ```json
 {
-	"http_code_response_headers": {
+	"code_response_headers": {
 		"429": {
 			"Retry-After": "10"
 		}
@@ -291,13 +291,13 @@ An actual useful case would be to include a [Retry-After](https://developer.mozi
 
 This would give a hint to clients when they receive a `429` (Too Many Requests) response from the web server, that they should wait `10` seconds before trying again.
 
-## http_uri_response_headers
+## uri_response_headers
 
 This property allows you to include *conditional* response headers, based on regular expression matches on incoming request URIs.  You may specify multiple patterns, and multiple headers to inject for each URI match.  For example, you can instruct the web server to send back custom headers for a specific URI prefix, like this:
 
 ```json
 {
-	"http_uri_response_headers": {
+	"uri_response_headers": {
 		"^/secret": {
 			"X-Message": "You found the secret area!",
 			"X-Foo": "Bar"
@@ -310,7 +310,7 @@ An actual useful case would be to include a set of [CSP headers](https://develop
 
 ```json
 {
-	"http_uri_response_headers": {
+	"uri_response_headers": {
 		"(\/|\\.html)$": {
 			"Content-Security-Policy": "default-src 'none'; script-src 'self'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; manifest-src 'self';img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';",
 			"X-Content-Type-Options": "nosniff",
@@ -321,31 +321,31 @@ An actual useful case would be to include a set of [CSP headers](https://develop
 }
 ```
 
-## http_timeout
+## timeout
 
 This sets the idle socket timeout for all incoming HTTP requests, in seconds.  If omitted, the Node.js default is 120 seconds.  Example:
 
 ```json
 {
-	"http_timeout": 120
+	"timeout": 120
 }
 ```
 
 This only applies to reading from sockets when data is expected.  It is an *idle read timeout* on the socket itself, and doesn't apply to request handlers.
 
-## http_request_timeout
+## request_timeout
 
 This property sets an actual hard request timeout for all incoming requests.  If the total combined request processing, handling and response time exceeds this value, specified in seconds, then the request is aborted and a `HTTP 408 Request Timeout` response is sent back to the client.  This defaults to `0` (disabled).  Example use:
 
 ```json
 {
-	"http_request_timeout": 300
+	"request_timeout": 300
 }
 ```
 
 Note that this includes request processing time (e.g. receiving uploaded data from a HTTP POST).
 
-## http_keep_alives
+## keep_alives
 
 This controls the [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persistent_connection) behavior in the web server.  There are three possible settings, which should be specified as a string:
 
@@ -353,7 +353,7 @@ This controls the [HTTP Keep-Alive](https://en.wikipedia.org/wiki/HTTP_persisten
 
 ```json
 {
-	"http_keep_alives": "default"
+	"keep_alives": "default"
 }
 ```
 
@@ -363,7 +363,7 @@ This **enables** Keep-Alives for all incoming connections by default, unless the
 
 ```json
 {
-	"http_keep_alives": "request"
+	"keep_alives": "request"
 }
 ```
 
@@ -373,29 +373,29 @@ This **disables** Keep-Alives for all incoming connections by default, unless th
 
 ```json
 {
-	"http_keep_alives": "close"
+	"keep_alives": "close"
 }
 ```
 
 This completely disables Keep-Alives for all connections.  All requests result in the socket being closed after completion, and each socket only serves one single request.
 
-## http_keep_alive_timeout
+## keep_alive_timeout
 
 This sets the HTTP Keep-Alive idle timeout for all sockets, measured in seconds.  If omitted, the Node.js default is 5 seconds.  See [server.keepAliveTimeout](https://nodejs.org/api/http.html#serverkeepalivetimeout) for details.  Example:
 
 ```json
 {
-	"http_keep_alive_timeout": 5
+	"keep_alive_timeout": 5
 }
 ```
 
-## http_socket_prelim_timeout
+## socket_prelim_timeout
 
-This sets a special preliminary timeout for brand new sockets when they are first connected, measured in seconds.  If an HTTP request doesn't come over the socket within this timeout (specified in seconds), then the socket is hard closed.  This timeout should always be set lower than the [http_timeout](#http_timeout) if used.  This defaults to `0` (disabled).  Example use:
+This sets a special preliminary timeout for brand new sockets when they are first connected, measured in seconds.  If an HTTP request doesn't come over the socket within this timeout (specified in seconds), then the socket is hard closed.  This timeout should always be set lower than the [timeout](#timeout) if used.  This defaults to `0` (disabled).  Example use:
 
 ```json
 {
-	"http_socket_prelim_timeout": 3
+	"socket_prelim_timeout": 3
 }
 ```
 
@@ -403,23 +403,23 @@ The idea here is to prevent certain DDoS-style attacks, where an attacker opens 
 
 **Note:** Do not enable this feature if you attach a WebSocket server such as [ws](https://github.com/websockets/ws).
 
-## http_max_requests_per_connection
+## max_requests_per_connection
 
 This allows you to set a maximum number of requests to allow per Keep-Alive connection.  It defaults to `0` which means unlimited.  If set, and the maximum is reached, a `Connection: close` header is returned, politely asking the client to close the connection.  It does not actually hard-close the socket.  Example:
 
 ```json
 {
-	"http_max_requests_per_connection": 100
+	"max_requests_per_connection": 100
 }
 ```
 
-## http_gzip_opts
+## gzip_opts
 
 This allows you to set various options for the automatic GZip compression in HTTP responses.  Example:
 
 ```json
 {
-	"http_gzip_opts": {
+	"gzip_opts": {
 		"level": 6,
 		"memLevel": 8
 	}
@@ -428,19 +428,19 @@ This allows you to set various options for the automatic GZip compression in HTT
 
 Please see the Node [Zlib Class Options](https://nodejs.org/api/zlib.html#class-options) for more details on what can be set here.
 
-## http_enable_brotli
+## enable_brotli
 
-Set this to `true` to enable [Brotli](https://en.wikipedia.org/wiki/Brotli) compression support.  The default is `false` (disabled).  When enabled, and the client advertises support via the `Accept-Encoding` request header, and [http_compress_text](#http_compress_text) is enabled, and the response `Content-Type` matches the [http_regex_text](#http_regex_text) pattern, Brotli will be used.
+Set this to `true` to enable [Brotli](https://en.wikipedia.org/wiki/Brotli) compression support.  The default is `false` (disabled).  When enabled, and the client advertises support via the `Accept-Encoding` request header, and [compress_text](#compress_text) is enabled, and the response `Content-Type` matches the [regex_text](#regex_text) pattern, Brotli will be used.
 
 Brotli is a newer compression format written by Google, which was added to Node.js in v10.16.0.  With careful tuning (see below) you can produce equivalent payload sizes to Gzip but considerably faster (i.e. less CPU), or even up to ~20% smaller sizes than Gzip but much slower (i.e. more CPU).
 
-## http_brotli_opts
+## brotli_opts
 
-If [http_enable_brotli](#http_enable_brotli) is set to `true`, then you can set various options via the `http_brotli_opts` configuration property.  Example:
+If [enable_brotli](#enable_brotli) is set to `true`, then you can set various options via the `brotli_opts` configuration property.  Example:
 
 ```json
 {
-	"http_brotli_opts": {
+	"brotli_opts": {
 		"chunkSize": 16 * 1024,
 		"mode": "text",
 		"level": 4,
@@ -451,27 +451,27 @@ If [http_enable_brotli](#http_enable_brotli) is set to `true`, then you can set 
 
 See the Node [Brotli Class Options](https://nodejs.org/api/zlib.html#class-brotlioptions) for more details on what can be set here.  Note that `mode` is a convenience shortcut for `zlib.constants.BROTLI_PARAM_MODE` (which can set to `text`, `font` or `generic`), `level` is a shortcut for `zlib.constants.BROTLI_PARAM_QUALITY`, and `hint` is a shortcut for `zlib.constants.BROTLI_PARAM_SIZE_HINT`.
 
-## http_default_acl
+## default_acl
 
 This allows you to configure the default [ACL](https://en.wikipedia.org/wiki/Access_control_list), which is only used for URI handlers that register themselves as private.  To customize it, specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  It defaults to [localhost](https://en.wikipedia.org/wiki/Localhost) plus the [IPv4 private reserved](https://en.wikipedia.org/wiki/Private_network#Private_IPv4_addresses) and [IPv6 private reserved ranges](https://en.wikipedia.org/wiki/Private_network#Private_IPv6_addresses).  Example:
 
 ```json
 {
-	"http_default_acl": ["127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fd00::/8", "169.254.0.0/16", "fe80::/10"]
+	"default_acl": ["127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fd00::/8", "169.254.0.0/16", "fe80::/10"]
 }
 ```
 
 See [Access Control Lists](#access-control-lists) below for more details.
 
-## http_blacklist
+## blacklist
 
-The `http_blacklist` property allows you to specify a list of IPs or IP ranges which are blacklisted.  Meaning, all requests from these IPs are immediately rejected by the web server (see details below).  The format of the `http_blacklist` is the same as `http_default_acl` (see [Access Control Lists](#access-control-lists)).  It defaults to an empty list (i.e. disabled).
+The `blacklist` property allows you to specify a list of IPs or IP ranges which are blacklisted.  Meaning, all requests from these IPs are immediately rejected by the web server (see details below).  The format of the `blacklist` is the same as `default_acl` (see [Access Control Lists](#access-control-lists)).  It defaults to an empty list (i.e. disabled).
 
 To customize it, specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
 
 ```json
 {
-	"http_blacklist": ["17.0.0.0/8", "12.0.0.0/8"]
+	"blacklist": ["17.0.0.0/8", "12.0.0.0/8"]
 }
 ```
 
@@ -479,29 +479,29 @@ This example would reject all incoming IP addresses from Apple and AT&T (who own
 
 When a new incoming connection is established, the socket IP is immediately checked against the blacklist, and if matched, the socket is "hard closed".  This is an early detection and rejection, before the HTTP request even comes in.  In this case a HTTP response isn't sent back (as the socket is simply slammed shut).  However, if you are using a load balancer or proxy, the user's true IP address might not be known until later on in the request cycle, once the HTTP headers are read in.  At that point all the user's IPs are checked against the blacklist again, and if any of them match, a `HTTP 403 Forbidden` response is sent back.
 
-## http_allow_hosts
+## allow_hosts
 
-The `http_allow_hosts` property allows you to specify a limited set of hosts to allow for incoming requests.  Specifically, this matches the incoming HTTP `Host` request header, or SNI (TLS handshake) host for HTTPS, and the value must match at least one entry in the array (case-insensitive).  For example, if you are hosting your application behind a domain name, you may want to restrict incoming requests so that they must explicitly point to your domain name.  Here is how to set this up:
+The `allow_hosts` property allows you to specify a limited set of hosts to allow for incoming requests.  Specifically, this matches the incoming HTTP `Host` request header, or SNI (TLS handshake) host for HTTPS, and the value must match at least one entry in the array (case-insensitive).  For example, if you are hosting your application behind a domain name, you may want to restrict incoming requests so that they must explicitly point to your domain name.  Here is how to set this up:
 
 ```json
-	"http_allow_hosts": ["mydomain.com"]
+	"allow_hosts": ["mydomain.com"]
 ```
 
 In the above example, only requests to `mydomain.com` would be allowed.  All other domains or IP addresses in the URL would be rejected with a `HTTP 403 Forbidden` error (or in the case of SNI / TLS handshake the socket is simply closed).  Include multiple entries in the array for things like subdomains:
 
 ```json
-	"http_allow_hosts": ["mydomain.com", "www.mydomain.com"]
+	"allow_hosts": ["mydomain.com", "www.mydomain.com"]
 ```
 
-If the `http_allow_hosts` array is empty or omitted entirely, all hosts are allowed.  This is the default behavior.
+If the `allow_hosts` array is empty or omitted entirely, all hosts are allowed.  This is the default behavior.
 
-## http_rewrites
+## rewrites
 
-If you need to rewrite certain incoming URLs on-the-fly, you can define rules in the `http_rewrites` object.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the substitution strings to use as replacements.  Here is a simple example:
+If you need to rewrite certain incoming URLs on-the-fly, you can define rules in the `rewrites` object.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the substitution strings to use as replacements.  Here is a simple example:
 
 ```json
 {
-	"http_rewrites": {
+	"rewrites": {
 		"^/rewrite/me": "/target/path"
 	}
 }
@@ -513,7 +513,7 @@ Since URIs are matched using regular expressions, you can define capturing group
 
 ```json
 {
-	"http_rewrites": {
+	"rewrites": {
 		"^/rewrite/me(.*)$": "/target/path?oldpath=$1"
 	}
 }
@@ -533,7 +533,7 @@ Here is an example showing an advanced configuration:
 
 ```json
 {
-	"http_rewrites": {
+	"rewrites": {
 		"^/rewrite/me": {
 			"url": "/target/path",
 			"headers": { "X-Rewritten": "Yes" },
@@ -545,15 +545,15 @@ Here is an example showing an advanced configuration:
 
 A URI may be rewritten multiple times if it matches multiple rules, which are applied in the order which they appear in your configuration.  You can specify a `last` property to ensure that rule matching stops when the specified rule matches a request.
 
-You can use the `headers` property to insert custom HTTP headers into the request.  These will be accessible by downstream URI handlers, and they will also be logged if [http_log_requests](#http_log_requests) is enabled.
+You can use the `headers` property to insert custom HTTP headers into the request.  These will be accessible by downstream URI handlers, and they will also be logged if [log_requests](#log_requests) is enabled.
 
-## http_redirects
+## redirects
 
-If you need to redirect certain incoming requests to external URLs, you can define rules in the `http_redirects` object.  When matched, these will interrupt the current request and return a redirect response to the client.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the fully-qualified URLs to redirect to.  Here is a simple example:
+If you need to redirect certain incoming requests to external URLs, you can define rules in the `redirects` object.  When matched, these will interrupt the current request and return a redirect response to the client.  The basic format is as follows: keys are regular expressions matched on incoming URI paths, and the values are the fully-qualified URLs to redirect to.  Here is a simple example:
 
 ```json
 {
-	"http_redirects": {
+	"redirects": {
 		"^/redirect/me": "https://disney.com/"
 	}
 }
@@ -565,7 +565,7 @@ Since URIs are matched using regular expressions, you can define capturing group
 
 ```json
 {
-	"http_redirects": {
+	"redirects": {
 		"^/github/(.*)$": "https://github.com/jhuckaby/$1"
 	}
 }
@@ -585,7 +585,7 @@ Here is an example showing an advanced configuration:
 
 ```json
 {
-	"http_redirects": {
+	"redirects": {
 		"^/redirect/me": {
 			"url": "https://disney.com/",
 			"headers": { "X-Redirected": "Yes" },
@@ -597,64 +597,64 @@ Here is an example showing an advanced configuration:
 
 You can use the `headers` property to insert custom HTTP headers into the redirect response.  Use the `status` to customize the HTTP response code and status (it defaults to `302 Found`).
 
-## http_log_requests
+## log_requests
 
 This boolean allows you to enable transaction logging in the web server.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
 
-## http_log_request_details
+## log_request_details
 
 This boolean adds verbose detail in the transaction log.  It defaults to `false` (disabled).  See [Transaction Logging](#transaction-logging) below for details.
 
-**Note:** This property only has effect if [http_log_requests](#http_log_requests) is enabled.
+**Note:** This property only has effect if [log_requests](#log_requests) is enabled.
 
-## http_log_body_max
+## log_body_max
 
-This property sets the maximum allowed request and response body length that can be logged, when [http_log_request_details](#http_log_request_details) is enabled.  It defaults to `32768` (32K).  If the request or response body length exceeds this amount, they will not be included in the transaction log.
+This property sets the maximum allowed request and response body length that can be logged, when [log_request_details](#log_request_details) is enabled.  It defaults to `32768` (32K).  If the request or response body length exceeds this amount, they will not be included in the transaction log.
 
-**Note:** This property only has effect if [http_log_request_details](#http_log_request_details) is enabled.
+**Note:** This property only has effect if [log_request_details](#log_request_details) is enabled.
 
-## http_regex_log
+## regex_log
 
-If [http_log_requests](#http_log_requests) is enabled, this allows you to specify a regular expression to match against incoming request URIs.  Only requests that match will be logged.  It defaults to match all URIs (`.+`).  See [Transaction Logging](#transaction-logging) below for details.
+If [log_requests](#log_requests) is enabled, this allows you to specify a regular expression to match against incoming request URIs.  Only requests that match will be logged.  It defaults to match all URIs (`.+`).  See [Transaction Logging](#transaction-logging) below for details.
 
-## http_log_perf
+## log_perf
 
 This boolean allows you to enable performance threshold logging.  It defaults to `false` (disabled).  See [Performance Threshold Logging](#performance-threshold-logging) below for details.
 
-## http_perf_threshold_ms
+## perf_threshold_ms
 
-If [http_log_perf](#http_log_perf) is enabled, this allows you to specify the request elapsed time threshold in milliseconds.  All requests equal to or longer will be logged.  It defaults to `100` milliseconds.  See [Performance Threshold Logging](#performance-threshold-logging) below for details.
+If [log_perf](#log_perf) is enabled, this allows you to specify the request elapsed time threshold in milliseconds.  All requests equal to or longer will be logged.  It defaults to `100` milliseconds.  See [Performance Threshold Logging](#performance-threshold-logging) below for details.
 
-## http_perf_report
+## perf_report
 
 This property allows you to include a complete or partial [Node.js Diagnostic Report](https://nodejs.org/docs/latest/api/report.html) in your [Performance Threshold Log](#performance-threshold-logging).  Specifically, you can set this to an array of report keys to include in the log data.  See [Including Diagnostic Reports](#including-diagnostic-reports) below for details.
 
-## http_recent_requests
+## recent_requests
 
 This integer specifies the number of recent requests to provide in the `getStats()` response.  It defaults to `10`.  See [Stats](#stats) below for details.
 
-## http_max_connections
+## max_connections
 
 This integer specifies the maximum number of concurrent connections to allow.  It defaults to `0` (no limit).  If specified and the amount is exceeded, new incoming connections will be denied (socket force-closed without reading any data), and an error logged for each attempt (with error code `maxconns`).
 
-## http_max_concurrent_requests
+## max_concurrent_requests
 
 This integer specifies the maximum number of concurrent requests to allow.  It defaults to `0` (no limit).  If more than the maximum allowed requests arrive in parallel, additional requests are queued, and processed as soon as slots become available.  Requests are always processed in the order they were received.
 
-The idea here is that you can set [http_max_connections](#http_max_connections) to a much higher value, for things like load balancers pre-opening connections or clients using a pool of keep-alive connections, but then only allow your application code to process a smaller amount of requests in parallel.  For example:
+The idea here is that you can set [max_connections](#max_connections) to a much higher value, for things like load balancers pre-opening connections or clients using a pool of keep-alive connections, but then only allow your application code to process a smaller amount of requests in parallel.  For example:
 
 ```json
 {
-	"http_max_connections": 2048,
-	"http_max_concurrent_requests": 64
+	"max_connections": 2048,
+	"max_concurrent_requests": 64
 }
 ```
 
 This would allow up to 2,048 concurrent connections (sockets) to be open at any given time, but only allow 64 active requests to run in parallel.  If more than 64 requests came in at once, the remainder would be queued up, and processed as soon as other requests completed.
 
-## http_max_queue_length
+## max_queue_length
 
-The `http_max_queue_length` property is designed to work in conjunction with [http_max_concurrent_requests](#http_max_concurrent_requests).  It specifies the maximum number of requests to allow in the queue, before rejecting new requests.  It defaults to `0` (infinite).  If the number of enqueued requests reaches this limit, then new incoming requests are immediately aborted with a `HTTP 429 Too Many Requests` response.  An error is also logged with a `429` code in this case.  Example error log entry:
+The `max_queue_length` property is designed to work in conjunction with [max_concurrent_requests](#max_concurrent_requests).  It specifies the maximum number of requests to allow in the queue, before rejecting new requests.  It defaults to `0` (infinite).  If the number of enqueued requests reaches this limit, then new incoming requests are immediately aborted with a `HTTP 429 Too Many Requests` response.  An error is also logged with a `429` code in this case.  Example error log entry:
 
 ```
 [1587614950.774][2020-04-22 21:09:10][joe16.local][93307][WebServer][error][429][Queue is maxed out (100 pending reqs), denying request from: 127.0.0.1][{"ips":["127.0.0.1"],"uri":"/sleep?ms=500","headers":{"accept-encoding":"gzip, deflate, br","user-agent":"Overflow Test Agent 1.0","host":"localhost:3012","connection":"keep-alive"},"pending":100,"active":1024,"sockets":1175}]
@@ -662,48 +662,48 @@ The `http_max_queue_length` property is designed to work in conjunction with [ht
 
 The error log data column includes some additional information including the total requests pending, the number of concurrent active requests, and the number of open sockets.
 
-## http_max_queue_active
+## max_queue_active
 
-The `http_max_queue_active` property is designed to work in conjunction with [http_max_connections](#http_max_connections), [http_max_concurrent_requests](#http_max_concurrent_requests) and [http_max_queue_length](#http_max_queue_length).  It sets an upper maximum for number of concurrent *active* requests in the queue (i.e. concurrent active requests), before new ones are immediately rejected with an `HTTP 429` response, without actually queueing up.  This defaults to `0` (disabled), which means there is no limit imposed at the queue level.
+The `max_queue_active` property is designed to work in conjunction with [max_connections](#max_connections), [max_concurrent_requests](#max_concurrent_requests) and [max_queue_length](#max_queue_length).  It sets an upper maximum for number of concurrent *active* requests in the queue (i.e. concurrent active requests), before new ones are immediately rejected with an `HTTP 429` response, without actually queueing up.  This defaults to `0` (disabled), which means there is no limit imposed at the queue level.
 
 The only reason you'd ever need to set this property is to handle a request overload situation by rejecting requests out of the queue via `HTTP 429`, rather than blocking them at the socket level (hard close), and also not allowing them to queue up (potential lag situation).  Example configuration:
 
 ```json
 {
-	"http_max_connections": 8192,
-	"http_max_concurrent_requests": 1024,
-	"http_max_queue_length": 1024,
-	"http_max_queue_active": 1024
+	"max_connections": 8192,
+	"max_concurrent_requests": 1024,
+	"max_queue_length": 1024,
+	"max_queue_active": 1024
 }
 ```
 
 The idea here is that pixl-server-web will allow up to 1,024 concurrent requests, but additional requests beyond the maximum are still accepted and responded to with a nice `HTTP 429` response, rather than the alternatives (i.e. allowing requests to queue up, possibly introducing unwanted lag, or performing a hard socket close).  This works as long as the total concurrent sockets do not exceed the upper limit (8,192 in this case).
 
-With both `http_max_queue_length` and `http_max_queue_active` set to non-zero values, the first limit reached aborts the request.
+With both `max_queue_length` and `max_queue_active` set to non-zero values, the first limit reached aborts the request.
 
-## http_queue_skip_uri_match
+## queue_skip_uri_match
 
-The `http_queue_skip_uri_match` property is designed to work in conjunction with [http_max_concurrent_requests](#http_max_concurrent_requests).  It allows you to specify a URI pattern match that will always skip over the queue and be processed immediately, regardless of limits.  Using this feature you can allow things like health checks (possibly from a load balancer) to always be serviced, even during an overload situation.  Example use:
+The `queue_skip_uri_match` property is designed to work in conjunction with [max_concurrent_requests](#max_concurrent_requests).  It allows you to specify a URI pattern match that will always skip over the queue and be processed immediately, regardless of limits.  Using this feature you can allow things like health checks (possibly from a load balancer) to always be serviced, even during an overload situation.  Example use:
 
 ```json
 {
-	"http_queue_skip_uri_match": "^/server-status"
+	"queue_skip_uri_match": "^/server-status"
 }
 ```
 
 This property defaults to `false` (disabled).
 
-## http_clean_headers
+## clean_headers
 
 This boolean enables HTTP response header cleansing.  When set to `true` it will strip all illegal characters from your response header values, which otherwise could cause Node.js to crash.  It defaults to `false`.  The regular expression it uses is `/([\x7F-\xFF\x00-\x1F\u00FF-\uFFFF])/g`.
 
-## http_log_socket_errors
+## log_socket_errors
 
 This boolean enables logging socket related errors, specifically sockets being closed unexpectedly (i.e. client closed socket, or some network error caused socket to abort).  This defaults to `true`, meaning these will be logged as errors.  If this generates too much log noise for your production stack, you can set the configuration property to `false`, which will only log a level 9 debug event.  Example:
 
 ```json
 {
-	"http_log_socket_errors": false
+	"log_socket_errors": false
 }
 ```
 
@@ -713,17 +713,17 @@ Example error log entry:
 [1545121086.42][2018-12-18 00:18:06][myserver01.mycompany.com][29801][WebServer][error][socket][Socket closed unexpectedly: c43593][][][{"id":"c43593","proto":"http","port":80,"time_start":1545120267519,"num_requests":886,"bytes_in":652041,"bytes_out":1307291,"total_elapsed":818901,"url":"http://mycompany.com/example/url","ips":["1.1.1.1","2.2.2.2"]}]
 ```
 
-## http_full_uri_match
+## full_uri_match
 
 When this boolean is set to `true`, [Custom URI Handlers](#custom-uri-handlers) will match against the *full* incoming URI, including the query string.  By default this is disabled, meaning URIs are only matched using their path.  Example:
 
 ```json
 {
-	"http_full_uri_match": true
+	"full_uri_match": true
 }
 ```
 
-## http_flatten_query
+## flatten_query
 
 By default, we use the Node.js core [Query String](https://nodejs.org/api/querystring.html) module to parse query strings.  This module handles duplicate query params by converting them to arrays.  For example, an incoming URI such as `/something?foo=bar1&foo=bar2&name=joe` would produce the following `args.query` object:
 
@@ -734,7 +734,7 @@ By default, we use the Node.js core [Query String](https://nodejs.org/api/querys
 }
 ```
 
-However, if you set `http_flatten_query` to `true` in your configuration, the web server will "flatten" query string parameters, so that duplicate keys will be combined into one, with the latter prevailing.  Example:
+However, if you set `flatten_query` to `true` in your configuration, the web server will "flatten" query string parameters, so that duplicate keys will be combined into one, with the latter prevailing.  Example:
 
 ```json
 {
@@ -743,23 +743,23 @@ However, if you set `http_flatten_query` to `true` in your configuration, the we
 }
 ```
 
-## http_req_max_dump_enabled
+## req_max_dump_enabled
 
 When this boolean is set to `true`, the [Request Max Dump](#request-max-dump) system is enabled.  This will produce a JSON dump file when the web server is maxed out on requests.
 
-## http_req_max_dump_dir
+## req_max_dump_dir
 
-When the [Request Max Dump](#request-max-dump) system is enabled, the `http_req_max_dump_dir` property sets the directory path where JSON dump files are dropped.  The directory will be created if needed.
+When the [Request Max Dump](#request-max-dump) system is enabled, the `req_max_dump_dir` property sets the directory path where JSON dump files are dropped.  The directory will be created if needed.
 
-## http_req_max_dump_debounce
+## req_max_dump_debounce
 
-When the [Request Max Dump](#request-max-dump) system is enabled, the `http_req_max_dump_debounce` property sets how many seconds should elapse between dumps, as to not overwhelm the filesystem.
+When the [Request Max Dump](#request-max-dump) system is enabled, the `req_max_dump_debounce` property sets how many seconds should elapse between dumps, as to not overwhelm the filesystem.
 
-## http_public_ip_offset
+## public_ip_offset
 
 This controls how [args.ip](#argsip) is chosen from the list of IP addresses in [args.ips](#argsips) for each incoming request.  By default, the client IP is chosen by scanning the list from left to right, and selecting the first non-private IP.  However, [modern wisdom](https://adam-p.ca/blog/2022/03/x-forwarded-for/) suggests that alternate selection logic may be more desirable to find the true public IP.
 
-By setting `http_public_ip_offset` to an integer value, you can select *exactly* which IP to select from the list.  Use negative numbers to select IP address from the *end* (right side) of the list.  Here are the recommended values:
+By setting `public_ip_offset` to an integer value, you can select *exactly* which IP to select from the list.  Use negative numbers to select IP address from the *end* (right side) of the list.  Here are the recommended values:
 
 | Offset | Description |
 |--------|-------------|
@@ -768,19 +768,19 @@ By setting `http_public_ip_offset` to an integer value, you can select *exactly*
 | `-2` | Always select the *second-to-last* IP in the list.  Use this mode if you have a single proxy device in front of your server (e.g. a load balancer). |
 | `-3` | Always select the *third-to-last* IP in the list.  Use this mode if you have two proxy devices in front of your server (e.g. a load balancer and CDN / cache). |
 
-## http_legacy_callback_support
+## legacy_callback_support
 
 This adds support for legacy applications, which require JSONP callback-style API responses, as well as extremely old HTML-wrapped IFRAME API responses.  It defaults to disabled.  It is **highly recommended** that you *leave this disabled* for all modern applications, as it prevents a classic [XSS reflection attack](https://owasp.org/www-community/attacks/xss/#reflected-xss-attacks) on your APIs:
 
 ```json
 {
-	"http_legacy_callback_support": false
+	"legacy_callback_support": false
 }
 ```
 
 Only enable this if you are supporting a legacy application which is hosted on a private, trusted network.
 
-## http_startup_message
+## startup_message
 
 When set to `true` and running in debug or foreground mode (i.e. `--debug` or `--foreground` CLI flags on startup), this will emit a message to the console on startup detailing all the socket listeners, ports, and URL endpoints you can hit.  Example conaole message:
 
@@ -794,15 +794,15 @@ Web Server Listeners:
 	--> https://192.168.3.25:3021/
 ```
 
-## http_debug_ttl
+## debug_ttl
 
-When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [http_static_ttl](#http_static_ttl) with `0`.  Useful for local development, i.e. reloading your web app in the browser.
+When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [static_ttl](#static_ttl) with `0`.  Useful for local development, i.e. reloading your web app in the browser.
 
 This feature defaults to `false` (disabled).
 
-## http_debug_bind_local
+## debug_bind_local
 
-When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [http_bind_address](#http_bind_address) with `localhost`.  This will keep your local development environment secure, and not exposed to the network.  To override this behavior, add an `--expose` CLI flag or explicitly set the `http_bind_address` in your config.
+When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [bind_address](#bind_address) with `localhost`.  This will keep your local development environment secure, and not exposed to the network.  To override this behavior, add an `--expose` CLI flag or explicitly set the `bind_address` in your config.
 
 This feature defaults to `false` (disabled).
 
@@ -873,11 +873,11 @@ This sets the idle socket timeout for all incoming HTTPS requests.  If omitted, 
 
 ## https_bind_address
 
-Optionally specify an exact local IP address to bind the HTTPS listener to.  By default this uses the value of [http_bind_address](#http_bind_address), but you can bind them differently using this property.  Example:
+Optionally specify an exact local IP address to bind the HTTPS listener to.  By default this uses the value of [bind_address](#bind_address), but you can bind them differently using this property.  Example:
 
 ```json
 {
-	"http_bind_address": "127.0.0.1",
+	"bind_address": "127.0.0.1",
 	"https_bind_address": "0.0.0.0"
 }
 ```
@@ -915,11 +915,11 @@ Your handler function is passed exactly two arguments.  First, an `args` object 
 
 If you specified a regular expression with parenthesis groups for the URI, the matches array will be included in the `args` object as `args.matches`.  Using this you can extract your matched groups from the URI, for e.g. `/^\/api\/(\w+)/`.
 
-Note that by default, URIs are only matched on their path portion (i.e. sans query string).  To include the query string in URI matches, set the [http_full_uri_match](#http_full_uri_match) configuration property to `true`.
+Note that by default, URIs are only matched on their path portion (i.e. sans query string).  To include the query string in URI matches, set the [full_uri_match](#full_uri_match) configuration property to `true`.
 
 ## Access Control Lists
 
-If you want to restrict access to certain URI handlers, you can specify an [ACL](https://en.wikipedia.org/wiki/Access_control_list) which represents a list of IP address ranges to allow.  To use the [default ACL](#http_default_acl), simply pass `true` as the 3rd argument to `addURIHandler()`, just before your callback.  This flags the URI as private.  Example:
+If you want to restrict access to certain URI handlers, you can specify an [ACL](https://en.wikipedia.org/wiki/Access_control_list) which represents a list of IP address ranges to allow.  To use the [default ACL](#default_acl), simply pass `true` as the 3rd argument to `addURIHandler()`, just before your callback.  This flags the URI as private.  Example:
 
 ```js
 server.WebServer.addURIHandler( /^\/private/, "Private Admin Area", true, function(args, callback) {
@@ -928,7 +928,7 @@ server.WebServer.addURIHandler( /^\/private/, "Private Admin Area", true, functi
 } );
 ```
 
-This will protect the handler using the *default ACL*, as specified by the [http_default_acl](#http_default_acl) configuration parameter.  However, if you want to specify a *custom* ACL per handler, simply replace the `true` argument with an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
+This will protect the handler using the *default ACL*, as specified by the [default_acl](#default_acl) configuration parameter.  However, if you want to specify a *custom* ACL per handler, simply replace the `true` argument with an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).  Example:
 
 ```js
 server.WebServer.addURIHandler( /^\/secret/, "Super Secret Area", ['10.0.0.0/8', 'fd00::/8'], function(args, callback) {
@@ -955,7 +955,7 @@ Note that the `Content-Type` response header is automatically set based on the t
 
 ## Static Directory Handlers
 
-If you would like to host static files in other places besides [http_htdocs_dir](#http_htdocs_dir), possibly with different options, then look no further than the `addDirectoryHandler()` method.  This allows you to set up static file handling with a custom base URI, a custom base directory on disk, and apply other options as well.  You can call this method as many times as you like to setup multiple static file directories.  Example:
+If you would like to host static files in other places besides [htdocs_dir](#htdocs_dir), possibly with different options, then look no further than the `addDirectoryHandler()` method.  This allows you to set up static file handling with a custom base URI, a custom base directory on disk, and apply other options as well.  You can call this method as many times as you like to setup multiple static file directories.  Example:
 
 ```js
 server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom' );
@@ -963,7 +963,7 @@ server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom' );
 
 The above example would catch all incoming requests starting with `/mycustomdir`, and serve up static files inside of the `/var/www/custom` directory on disk (and possibly nested directories as well).  So a URL such as `http://MYSERVER/mycustomdir/foo/file1.txt` would map to the file `/var/www/custom/foo/file1.txt` on disk.
 
-In this case a default TTL is applied to all files via [http_static_ttl](#http_static_ttl).  If you would like to customize the TTL for your custom static directory, as well as specify other options, pass in an object as the 3rd argument to `addDirectoryHandler()`.  Example of this:
+In this case a default TTL is applied to all files via [static_ttl](#static_ttl).  If you would like to customize the TTL for your custom static directory, as well as specify other options, pass in an object as the 3rd argument to `addDirectoryHandler()`.  Example of this:
 
 ```js
 server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom', {
@@ -975,11 +975,11 @@ server.WebServer.addDirectoryHandler( /^\/mycustomdir/, '/var/www/custom', {
 } );
 ```
 
-In this example the files would be restricted to client IP addresses matching the [http_default_acl](#http_default_acl), and would be served up with a custom TTL of 3600 seconds (specifically, the `Cache-Control` response header would be set to `public, max-age=3600`).  Finally, all static file responses would include the `X-Custom: 12345` header.  Here is a list of the available properties in the options object:
+In this example the files would be restricted to client IP addresses matching the [default_acl](#default_acl), and would be served up with a custom TTL of 3600 seconds (specifically, the `Cache-Control` response header would be set to `public, max-age=3600`).  Finally, all static file responses would include the `X-Custom: 12345` header.  Here is a list of the available properties in the options object:
 
 | Property Name | Type | Description |
 |---------------|------|-------------|
-| `acl` | Boolean | Optionally restrict the static files to an IP-based ACL.  You can set this to Boolean `true` to use the [http_default_acl](#http_default_acl), or specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing). |
+| `acl` | Boolean | Optionally restrict the static files to an IP-based ACL.  You can set this to Boolean `true` to use the [default_acl](#default_acl), or specify an array of [IPv4](https://en.wikipedia.org/wiki/IPv4) and/or [IPv6](https://en.wikipedia.org/wiki/IPv6) addresses, partials or [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing). |
 | `ttl` | Mixed | Optionally customize the TTL (`Cache-Control` header).  Set this to a number to use the `public, max-age=###` format, or a string to specify the entire header value yourself. |
 | `headers` | Object | Optionally include additional HTTP headers with every static response.  Note that you cannot use this to override built-in headers like `Content-Type`, `Content-Length`, `ETag`, and others.  It can only be used to insert unique headers. |
 
@@ -1109,7 +1109,7 @@ This will be set to the user's remote IP address.  Generally, it will be set to 
 
 Meaning, if the user is sitting behind one or more proxy servers, *or* your web server is behind a load balancer, this will attempt to locate the user's true public (non-private) IP address.  If none is found, it'll just return the first IP address, honoring proxy headers before the socket (which is usually correct).
 
-See [http_public_ip_offset](https://github.com/jhuckaby/pixl-server-web#http_public_ip_offset) for details on customizing the behavior of this property.
+See [public_ip_offset](https://github.com/jhuckaby/pixl-server-web#public_ip_offset) for details on customizing the behavior of this property.
 
 If you just want the socket IP by itself, you can get it from `args.request.socket.remoteAddress`.
 
@@ -1144,7 +1144,7 @@ Duplicate query params become an array.  For example, an incoming URI such as `/
 }
 ```
 
-See [http_flatten_query](#http_flatten_query) if you would rather duplicate query parameters be flattened (latter prevails).
+See [flatten_query](#flatten_query) if you would rather duplicate query parameters be flattened (latter prevails).
 
 ### args.params
 
@@ -1253,7 +1253,7 @@ To pass data between filters and potentially handlers, simply add properties int
 
 # Transaction Logging
 
-In addition to the standard debug logging in [pixl-server](https://github.com/jhuckaby/pixl-server), the web server component can also log each request as a `transaction`.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_requests](#http_log_requests) configuration property to `true`.  The pixl-server log will then include a `transaction` row for every completed web request.  Example:
+In addition to the standard debug logging in [pixl-server](https://github.com/jhuckaby/pixl-server), the web server component can also log each request as a `transaction`.  This is an optional feature which is disabled by default.  To enable it, set the [log_requests](#log_requests) configuration property to `true`.  The pixl-server log will then include a `transaction` row for every completed web request.  Example:
 
 ```
 [1466210619.37][2016/06/17 17:43:39][joeretina.local][WebServer][transaction][HTTP 200 OK][/server-status?pretty=1][{"id":"r4","proto":"http","ips":["::ffff:127.0.0.1"],"host":"127.0.0.1:3012","ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17","perf":{"scale":1000,"perf":{"total":10.266,"read":0.256,"process":1.077,"write":7.198},"counters":{"bytes_in":587,"bytes_out":431,"num_requests":1}}}]
@@ -1320,17 +1320,17 @@ Here are descriptions of the data JSON properties:
 
 The `perf` object contains performance metrics for the request, as returned from the [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) module.  It includes a `scale` property denoting that all the metrics are displayed in milliseconds (i.e. `1000`).  The metrics themselves are in the `perf` object, and counters such as the number of bytes in/out are in the `counters` object.
 
-If you only want to log *some* requests, but not all of them, you can specify a regular expression in the [http_regex_log](#http_regex_log) configuration property, which is matched against the incoming request URIs.  Example:
+If you only want to log *some* requests, but not all of them, you can specify a regular expression in the [regex_log](#regex_log) configuration property, which is matched against the incoming request URIs.  Example:
 
 ```json
 {
-	"http_regex_log": "^/my/special/path"
+	"regex_log": "^/my/special/path"
 }
 ```
 
 ## Request Detail Logging
 
-If you set both the [http_log_requests](#http_log_requests) and [http_log_request_details](#http_log_request_details) configuration properties to `true`, pixl-server will include verbose details in the transaction logs, specifically in the JSON-formatted `data` column.  It will include the raw request and raw response (if in text format), and extra details about both the request and the response.  Example of the `data` column from the log, pretty-printed:
+If you set both the [log_requests](#log_requests) and [log_request_details](#log_request_details) configuration properties to `true`, pixl-server will include verbose details in the transaction logs, specifically in the JSON-formatted `data` column.  It will include the raw request and raw response (if in text format), and extra details about both the request and the response.  Example of the `data` column from the log, pretty-printed:
 
 ```json
 {
@@ -1407,7 +1407,7 @@ If you set both the [http_log_requests](#http_log_requests) and [http_log_reques
 }
 ```
 
-As you can see, in addition to all the information logged with [http_log_requests](#http_log_requests), the `data` column now includes even more detail.  Here is the full list of all JSON properties and their descriptions, logged with [http_log_request_details](#http_log_request_details) enabled:
+As you can see, in addition to all the information logged with [log_requests](#log_requests), the `data` column now includes even more detail.  Here is the full list of all JSON properties and their descriptions, logged with [log_request_details](#log_request_details) enabled:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1444,12 +1444,12 @@ The raw request and response content will only be logged in certain cases:
 
 ## Performance Threshold Logging
 
-In addition to [Transaction Logging](#transaction-logging), pixl-server-web can also log performance metrics for certain requests, if the total request elapsed time meets or exceeds a custom threshold.  This allows you to log only "slow" requests, i.e. those possibly requiring investigation.  This is an optional feature which is disabled by default.  To enable it, set the [http_log_perf](#http_log_perf) configuration property to `true`, and then set the [http_perf_threshold_ms](#http_perf_threshold_ms) property to the desired logging threshold in milliseconds.  Example:
+In addition to [Transaction Logging](#transaction-logging), pixl-server-web can also log performance metrics for certain requests, if the total request elapsed time meets or exceeds a custom threshold.  This allows you to log only "slow" requests, i.e. those possibly requiring investigation.  This is an optional feature which is disabled by default.  To enable it, set the [log_perf](#log_perf) configuration property to `true`, and then set the [perf_threshold_ms](#perf_threshold_ms) property to the desired logging threshold in milliseconds.  Example:
 
 ```json
 {
-	"http_log_perf": true,
-	"http_perf_threshold_ms": 100
+	"log_perf": true,
+	"perf_threshold_ms": 100
 }
 ```
 
@@ -1526,11 +1526,11 @@ The performance threshold system retroactively adjusts the log to represent the 
 
 ### Including Diagnostic Reports
 
-To include a partial or complete [Node.js Diagnostic Report](https://nodejs.org/docs/latest/api/report.html) in your performance log data, set the [http_perf_report](#http_perf_report) configuration property.  For a full report, set it to `true`:
+To include a partial or complete [Node.js Diagnostic Report](https://nodejs.org/docs/latest/api/report.html) in your performance log data, set the [perf_report](#perf_report) configuration property.  For a full report, set it to `true`:
 
 ```json
 {
-	"http_perf_report": true
+	"perf_report": true
 }
 ```
 
@@ -1538,7 +1538,7 @@ However, please note that this is *very* verbose.  For a partial report, you can
 
 ```json
 {
-	"http_perf_report": ["uvthreadResourceUsage"]
+	"perf_report": ["uvthreadResourceUsage"]
 }
 ```
 
@@ -1810,15 +1810,15 @@ The `recent` array is a sorted list of the last 10 completed requests (most rece
 | `ua` | String | The client's `User-Agent` string. |
 | `perf` | Object | A [pixl-perf](https://www.github.com/jhuckaby/pixl-perf) performance metrics object containing stats for the request. |
 
-If you would like more than 10 requests, set the [http_recent_requests](#http_recent_requests) configuration property to the number you want.
+If you would like more than 10 requests, set the [recent_requests](#recent_requests) configuration property to the number you want.
 
 ## The Queue Object
 
-The `queue` object contains information about the request queue.  This includes the number of current active requests running in parallel, and the number of queued requests waiting to be processed.  The pending count is only relevant if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero.  Here are the queue object properties:
+The `queue` object contains information about the request queue.  This includes the number of current active requests running in parallel, and the number of queued requests waiting to be processed.  The pending count is only relevant if [max_concurrent_requests](#max_concurrent_requests) is non-zero.  Here are the queue object properties:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `pending` | Integer | The number of requests queued, waiting for processing.  Only used if [http_max_concurrent_requests](#http_max_concurrent_requests) is non-zero. |
+| `pending` | Integer | The number of requests queued, waiting for processing.  Only used if [max_concurrent_requests](#max_concurrent_requests) is non-zero. |
 | `running` | Integer | The number of active requests currently being processed in parallel. |
 
 ## Stats URI Handler
@@ -1956,16 +1956,16 @@ Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
 
 For debugging and troubleshooting purposes, pixl-server-web can optionally generate a "dump" file when it reaches certain traffic limits.  Specifically, when one of these events occur:
 
-- When the [http_max_connections](#http_max_connections) limit is reached.
-- When the [http_max_queue_length](#http_max_queue_length) limit is reached.
-- When the [http_max_queue_active](#http_max_queue_active) limit is reached.
+- When the [max_connections](#max_connections) limit is reached.
+- When the [max_queue_length](#max_queue_length) limit is reached.
+- When the [max_queue_active](#max_queue_active) limit is reached.
 
-To enable this feature, set the [http_req_max_dump_enabled](#http_req_max_dump_enabled) configuration property to `true`, the [http_req_max_dump_dir](#http_req_max_dump_dir) property to a path on your filesystem to hold your dump files (this will be created if needed), and [http_req_max_dump_debounce](#http_req_max_dump_debounce) to the maximum frequency you want files dumped (in seconds).  Example:
+To enable this feature, set the [req_max_dump_enabled](#req_max_dump_enabled) configuration property to `true`, the [req_max_dump_dir](#req_max_dump_dir) property to a path on your filesystem to hold your dump files (this will be created if needed), and [req_max_dump_debounce](#req_max_dump_debounce) to the maximum frequency you want files dumped (in seconds).  Example:
 
 ```json
-"http_req_max_dump_enabled": true,
-"http_req_max_dump_dir": "/var/log/web-server-dumps",
-"http_req_max_dump_debounce": 10
+"req_max_dump_enabled": true,
+"req_max_dump_dir": "/var/log/web-server-dumps",
+"req_max_dump_debounce": 10
 ```
 
 This would generate dump files in the `/var/log/web-server-dumps` directory every 10 seconds, while one or more maximum limits are maxed out.
