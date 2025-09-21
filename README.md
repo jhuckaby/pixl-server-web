@@ -1042,6 +1042,8 @@ callback(
 
 The content body can be a string, a [Buffer](https://nodejs.org/api/buffer.html) object, or a [readable stream](https://nodejs.org/api/stream.html#class-streamreadable).
 
+Note that you can omit the status text and just return a code, e.g. `"200"`, and the web server will fill in the text.
+
 ### Custom Response
 
 The second type of response is to send content directly to the underlying Node.js server by yourself, using `args.response` (see below).  If you do this, you can pass `true` to the callback function, indicating to the web server that you "handled" the response, and it shouldn't do anything else.  Example:
