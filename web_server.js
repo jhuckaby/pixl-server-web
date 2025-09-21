@@ -122,8 +122,38 @@ class WebServer extends Component {
 			this.server.on('ready', function() { setTimeout( self.postStartupMessage.bind(self), 250 ); } );
 		}
 		
+		// optional chaos (fault injection)
+		if (this.config.getPath('chaos.enabled')) this.setupChaos();
+		
 		// start listeners
 		this.startAll(callback);
+	}
+	
+	setupChaos() {
+		// setup chaos system (random delays, errors, etc.)
+		// chaos: { enabled, uri?, delay?: { min:0, max:250 }, errors?: { "503 Service Unavailable": 0.1 }, headers? }
+		var self = this;
+		var chaos = this.config.get('chaos');
+		
+		this.addURIFilter( new RegExp(chaos.uri || '.+'), "Chaos", function(args, callback) {
+			var ms = chaos.delay ? Math.round( chaos.delay.min + (Math.random() * (chaos.delay.max - chaos.delay.min)) ) : 0;
+			if (ms) self.logDebug(9, `Chaos: Delaying request for ${ms}ms`);
+			
+			setTimeout( function() {
+				if (!chaos.errors) return callback(false); // passthru
+				var chosen = false;
+				
+				for (var status in chaos.errors) {
+					if (Math.random() <= chaos.errors[status]) { chosen = status; break; }
+				}
+				
+				if (chosen) {
+					self.logDebug(9, `Chaos: Injecting fault: $(chosen)`);
+					callback( chosen, chaos.headers || {}, "Simulated Error: " + chosen );
+				}
+				else callback(false);
+			}, ms); // setTimeout
+		}); // addURIFilter
 	}
 	
 	prepConfig() {

@@ -36,6 +36,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [brotli_opts](#brotli_opts)
 	* [default_acl](#default_acl)
 	* [blacklist](#blacklist)
+	* [whitelist](#whitelist)
 	* [allow_hosts](#allow_hosts)
 	* [rewrites](#rewrites)
 	* [redirects](#redirects)
@@ -64,6 +65,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [startup_message](#startup_message)
 	* [debug_ttl](#debug_ttl)
 	* [debug_bind_local](#debug_bind_local)
+	* [chaos](#chaos)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_alt_ports](#https_alt_ports)
@@ -821,6 +823,29 @@ This feature defaults to `false` (disabled).
 When set to `true` and running in debug mode (i.e. `--debug` CLI flag on startup), this will override the value of [bind_address](#bind_address) with `localhost`.  This will keep your local development environment secure, and not exposed to the network.  To override this behavior, add an `--expose` CLI flag or explicitly set the `bind_address` in your config.
 
 This feature defaults to `false` (disabled).
+
+## chaos
+
+Use the `chaos` feature to introduce optional and random fault injection into your web requests.  Used for testing purposes, this feature can introduce a random delay on every request, and also hijack requests and inject random error responses based on probabilities you specify.  Here is how to use it:
+
+```json
+"chaos": { 
+	"enabled": true, 
+	"uri": ".+", 
+	"delay": { 
+		"min":0, 
+		"max":2000 
+	}, 
+	"errors": { 
+		"503 Service Unavailable": 0.1 
+	}, 
+	"headers": {
+		"Retry-After": 10
+	} 
+}
+```
+
+Set the `chaos.enabled` flag to `true` to enable fault injection.  By default, all URIs will be affected, unless you specify a `chaos.uri` (regular expression) to limit the requests.  Set `chaos.delay.min` and `chaos.delay.max` to the range you want to delay requests (in milliseconds).  Fill the `chaos.errors` object the HTTP repsonse codes (and status messages) you want to see, and how often.  The values are interpreted as probabilities from `0.0` (never) to `1.0` (always).  In the above example, the `HTTP 503` error code will be injected approximately 10% of the time.  When errors are injected, you can include additional response headers in the `chaos.headers` object.
 
 ## https
 
