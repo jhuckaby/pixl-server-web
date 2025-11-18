@@ -1922,78 +1922,246 @@ server.WebServer.addMethodHandler( "OPTIONS", "CORS Preflight", function(args, c
 } );
 ```
 
-## Let's Encrypt SSL Certificates
+## Let's Encrypt / ACME TLS Certificates
 
-Here are instructions for using [Let's Encrypt](https://letsencrypt.org/) SSL certificates with pixl-server-web, specifically how to get your certificate issued and how to setup automatic renewal.
+These are instructions for using [Let's Encrypt](https://letsencrypt.org/) TLS certificates with **pixl-server-web**: how to get your certificate issued and how to keep it renewed automatically.
 
-The first thing you should do is make sure your server has a public IP address, and point your domain name to it using a DNS "A" record.  For these examples we will be using the domain `mydomain.com`.
+The examples below use the domain `mydomain.com`. Replace this with your own real domain.
 
-Next, you will need to manually install [certbot](https://certbot.eff.org) on your server.  The easiest way to do this is to use the wrapper script [certbot-auto](https://certbot.eff.org/docs/install.html#certbot-auto), like this:
+### ACME clients
+
+Let's Encrypt issues certificates using the **ACME protocol**. To talk ACME, you need an ACME *client*.
+
+For most people, Let's Encrypt recommends **Certbot** as the default ACME client:
+
+https://letsencrypt.org/docs/client-options/
+
+Other popular clients include:
+
+* **acme.sh** – pure shell, great DNS-API support.
+* Various language-specific clients (Go, Rust, Node, etc.) – see the Let's Encrypt “ACME clients” list for a full catalog.
+
+These docs focus on **Certbot**, with a short note about acme.sh for DNS-based / wildcard setups.
+
+### Point your domain at your server
+
+Before you can get a certificate:
+
+1. Make sure your server has a **public IPv4 (and/or IPv6) address**.
+2. In your DNS provider’s control panel, create an **A record** for your domain:
+	- Name: `@` (or `mydomain.com`, provider-specific)
+	- Type: `A`
+	- Value: your server’s IPv4 address
+	- Optionally create an **AAAA record** for IPv6.
+3. Wait for DNS to propagate.
+
+You should be able to open http://mydomain.com/ in a browser and hit your server.
+
+### Install Certbot
+
+1. Go to: https://certbot.eff.org/
+2. Select:
+	- Your OS (e.g. “Ubuntu 24.04” or “Debian 12”)
+	- Web server: **“None of the above (or other)”**
+3. Follow the instructions shown there.
+
+Typical examples:
+
+#### Ubuntu / Debian
+
+Certbot’s maintainers (EFF) now publish current builds only through Snap:
 
 ```sh
-mkdir -p /usr/local/bin
-curl -s https://dl.eff.org/certbot-auto > /usr/local/bin/certbot-auto
-chmod a+x /usr/local/bin/certbot-auto
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
 ```
 
-We'll be using the [Webroot](https://certbot.eff.org/docs/using.html#webroot) method for authorization.  Make sure you have a web server running on your server and listening on port 80 (only plain HTTP is required at this point).  Assuming your web server's document root path is `/var/www/html` issue this command:
+#### RHEL / CentOS / Fedora
+
+DNF is the correct command to use on RedHat and family:
 
 ```sh
-/usr/local/bin/certbot-auto certonly --webroot -w /var/www/html -d mydomain.com
+sudo dnf install certbot
 ```
 
-If you need certificates for multiple subdomains, you can repeat the `-d` flag, e.g. `-d mydomain.com -d www.mydomain.com`.
+Verify installation:
 
-Then follow the instructions on the console.  Certbot will ask you a number of questions including asking you for your e-mail address, accepting terms of service, etc.  When you are done, you should see a success message like this:
-
-```
-IMPORTANT NOTES:
- - Congratulations! Your certificate and chain have been saved at:
-   /etc/letsencrypt/live/mydomain.com/fullchain.pem
-   Your key file has been saved at:
-   /etc/letsencrypt/live/mydomain.com/privkey.pem
-   Your cert will expire on 2019-06-19. To obtain a new or tweaked
-   version of this certificate in the future, simply run certbot-auto
-   again. To non-interactively renew *all* of your certificates, run
-   "certbot-auto renew"
- - Your account credentials have been saved in your Certbot
-   configuration directory at /etc/letsencrypt. You should make a
-   secure backup of this folder now. This configuration directory will
-   also contain certificates and private keys obtained by Certbot so
-   making regular backups of this folder is ideal.
- - If you like Certbot, please consider supporting our work by:
-
-   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
-   Donating to EFF:                    https://eff.org/donate-le
+```sh
+certbot --version
 ```
 
-Your SSL certificates are now ready to use in pixl-server-web.  Simply add the following properties to your `WebServer` configuration object, replacing `mydomain.com` with your own domain name:
+### Option A: HTTP-01 (webroot)
+
+HTTP-01 requires port **80** open and a web root directory that pixl-server-web (or another HTTP server) uses.
+
+#### Ensure HTTP is working on port 80
+
+Configure pixl-server-web (or any HTTP server) to:
+
+- Listen on **port 80**.
+- Serve static content from a directory, for example `/var/www/html`.
+
+Then visit: http://mydomain.com/
+
+#### Issue a certificate using webroot
+
+```sh
+sudo certbot certonly --webroot -w /var/www/html -d mydomain.com
+```
+
+Add more hostnames if needed:
+
+```sh
+sudo certbot certonly --webroot -w /var/www/html -d mydomain.com -d www.mydomain.com
+```
+
+Certbot will create:
+
+```
+/etc/letsencrypt/live/mydomain.com/fullchain.pem
+/etc/letsencrypt/live/mydomain.com/privkey.pem
+/etc/letsencrypt/live/mydomain.com/cert.pem
+/etc/letsencrypt/live/mydomain.com/chain.pem
+```
+
+### Configure pixl-server-web for HTTPS
+
+In your pixl-server-web config:
 
 ```js
 "https": true,
 "https_port": 443,
-"https_cert_file": "/etc/letsencrypt/live/mydomain.com/cert.pem",
-"https_key_file": "/etc/letsencrypt/live/mydomain.com/privkey.pem",
-"https_ca_file": "/etc/letsencrypt/live/mydomain.com/chain.pem"
+"https_cert_file":  "/etc/letsencrypt/live/mydomain.com/cert.pem",
+"https_key_file":   "/etc/letsencrypt/live/mydomain.com/privkey.pem",
+"https_ca_file":    "/etc/letsencrypt/live/mydomain.com/chain.pem"
 ```
 
-Then start your server as root and it should accept `https://` requests on port 443.
+Then restart pixl-server-web so it can bind to port 443.
 
-The final step is to make sure your certificates auto-renew before they expire (every 90 days).  The `certbot-auto` command takes care of this, but we have to take care of invoking it ourselves, i.e. from a [crontab](https://en.wikipedia.org/wiki/Cron).  It is recommended that you run the command every night, noting that it takes no action unless your certificates are about to expire (i.e. within 30 days).
+Visit: https://mydomain.com/
 
-If your certificates were renewed, you will also need to restart pixl-server-web.  The `certbot-auto` command can also do this for you, using a special `--post-hook` command-line argument.  Example:
+## Automatic renewal
+
+Let's Encrypt certificates are valid for **90 days**.
+
+Certbot automatically installs:
+
+- A **systemd timer**, or
+- A **cron job**
+
+that runs `certbot renew` twice a day.
+
+pixl-server-web will automatically reload certs when they change on disk.  There is no need to trigger a restart.
+
+#### Check that renewal timers are installed
 
 ```sh
-/usr/local/bin/certbot-auto renew --post-hook "/opt/myapp/bin/control.sh restart"
+systemctl list-timers | grep certbot
 ```
 
-Toss that command into a shell script in `/etc/cron.daily/` and it'll run daily at 4 AM local server time.  Note that the command does produce output, even if your certs are not renewed, so you may want to silence it:
+Test renewal:
 
 ```sh
-/usr/local/bin/certbot-auto renew --post-hook "/opt/myapp/bin/control.sh restart" >/dev/null 2>&1
+sudo certbot renew --dry-run
 ```
 
-Certbot produces its own log file here: `/var/log/letsencrypt/letsencrypt.log`
+### Option B: DNS-01 with DNS API (wildcards, advanced)
+
+Use DNS-01 if:
+
+* You want a **wildcard cert** (`*.mydomain.com`).
+* Port 80 is blocked or server is not exposed to the internet.
+* You want a central ACME box managing certs.
+
+DNS-01 works by creating a TXT record:
+
+```
+_acme-challenge.mydomain.com
+```
+
+#### Using Certbot DNS plugins
+
+Example: Cloudflare
+
+Install plugin (package varies by distro):
+
+```
+sudo apt install python3-certbot-dns-cloudflare
+```
+
+Create credentials file:
+
+`~/.secrets/certbot/cloudflare.ini`
+
+```ini
+dns_cloudflare_api_token = YOUR_TOKEN
+```
+
+Lock permissions:
+
+```sh
+chmod 600 ~/.secrets/certbot/cloudflare.ini
+```
+
+Issue wildcard cert:
+
+```sh
+sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials ~/.secrets/certbot/cloudflare.ini -d mydomain.com -d '*.mydomain.com'
+```
+
+#### Using acme.sh
+
+Install:
+
+```sh
+curl https://get.acme.sh | sh
+```
+
+Issue DNS-based cert:
+
+```sh
+~/.acme.sh/acme.sh --issue --dns dns_cf -d mydomain.com -d '*.mydomain.com'
+```
+
+Install certs into your preferred paths:
+
+```sh
+~/.acme.sh/acme.sh --install-cert -d mydomain.com --key-file /etc/letsencrypt/live/mydomain.com/privkey.pem --fullchain-file /etc/letsencrypt/live/mydomain.com/fullchain.pem
+```
+
+### Where your certificates live
+
+Default Certbot paths:
+
+```
+/etc/letsencrypt/live/mydomain.com/privkey.pem
+/etc/letsencrypt/live/mydomain.com/fullchain.pem
+/etc/letsencrypt/live/mydomain.com/cert.pem
+/etc/letsencrypt/live/mydomain.com/chain.pem
+```
+
+### Troubleshooting
+
+Test renewal:
+
+```sh
+sudo certbot renew --dry-run
+```
+
+Logs:
+
+```
+/var/log/letsencrypt/letsencrypt.log
+```
+
+- DNS-01 issues:
+	- Verify TXT record exists using `dig` or `nslookup`.
+	- Ensure your API credentials have minimum DNS permissions.
+
+For more information:
+
+- https://letsencrypt.org/docs/
+- https://certbot.eff.org/docs/
 
 ## Request Max Dump
 
