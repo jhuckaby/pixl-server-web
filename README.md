@@ -120,7 +120,23 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [Determining HTTP or HTTPS](#determining-http-or-https)
 	* [Self-Referencing URLs](#self-referencing-urls)
 	* [Custom Method Handlers](#custom-method-handlers)
-	* [Let's Encrypt SSL Certificates](#lets-encrypt-ssl-certificates)
+	* [Let's Encrypt / ACME TLS Certificates](#lets-encrypt--acme-tls-certificates)
+		+ [ACME clients](#acme-clients)
+		+ [Point your domain at your server](#point-your-domain-at-your-server)
+		+ [Install Certbot](#install-certbot)
+			- [Ubuntu / Debian](#ubuntu--debian)
+			- [RHEL / CentOS / Fedora](#rhel--centos--fedora)
+		+ [Option A: HTTP-01 (webroot)](#option-a-http-01-webroot)
+			- [Ensure HTTP is working on port 80](#ensure-http-is-working-on-port-80)
+			- [Issue a certificate using webroot](#issue-a-certificate-using-webroot)
+		+ [Configure pixl-server-web for HTTPS](#configure-pixl-server-web-for-https)
+		+ [Automatic renewal](#automatic-renewal)
+			- [Check that renewal timers are installed](#check-that-renewal-timers-are-installed)
+		+ [Option B: DNS-01 with DNS API (wildcards, advanced)](#option-b-dns-01-with-dns-api-wildcards-advanced)
+			- [Using Certbot DNS plugins](#using-certbot-dns-plugins)
+			- [Using acme.sh](#using-acmesh)
+		+ [Where your certificates live](#where-your-certificates-live)
+		+ [Troubleshooting](#troubleshooting)
 	* [Request Max Dump](#request-max-dump)
 - [License](#license)
 
@@ -2040,7 +2056,7 @@ Then restart pixl-server-web so it can bind to port 443.
 
 Visit: https://mydomain.com/
 
-## Automatic renewal
+### Automatic renewal
 
 Let's Encrypt certificates are valid for **90 days**.
 
