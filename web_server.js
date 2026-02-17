@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 const zlib = require('zlib');
 const async = require('async');
 const Class = require("class-plus");
@@ -186,8 +187,64 @@ class WebServer extends Component {
 		// optional chaos (fault injection)
 		if (this.config.getPath('chaos.enabled')) this.setupChaos();
 		
+		// optional auth endpoints
+		if (this.config.get('auth')) this.setupAuth();
+		
 		// start listeners
 		this.startAll(callback);
+	}
+	
+	setupAuth() {
+		// basic auth behind custom URI patterns
+		// auth: { "URI": { enabled, type, realm, username, password } }
+		var self = this;
+		var auth_config = this.config.get('auth');
+		
+		// constant-time comparison to avoid timing attacks
+		var safeCompare = function(a, b) {
+			const bufA = Buffer.from(a);
+			const bufB = Buffer.from(b);
+			if (bufA.length !== bufB.length) return false;
+			return crypto.timingSafeEqual(bufA, bufB);
+		};
+		
+		var checkBasicAuth = function(req, auth) {
+			const header = req.headers['authorization'];
+			if (!header) return false;
+			
+			const [scheme, encoded] = header.split(' ');
+			if (scheme !== 'Basic' || !encoded) return false;
+			
+			const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+			const index = decoded.indexOf(':');
+			if (index === -1) return false;
+			
+			const username = decoded.slice(0, index);
+			const password = decoded.slice(index + 1);
+			
+			return safeCompare(username, auth.username) && safeCompare(password, auth.password);
+		};
+		
+		Object.keys(auth_config).forEach( function(uri_match) {
+			var auth = auth_config[uri_match];
+			if (!auth.enabled) return;
+			if (auth.type != 'basic') {
+				self.logError('auth', "Unsupported auth type: " + auth.type);
+				return;
+			}
+			
+			self.addURIFilter( new RegExp(uri_match), "Auth", function(args, callback) {
+				self.logDebug(9, "Checking auth for: " + uri_match, { realm: auth.realm });
+				if (!checkBasicAuth(args.request, auth)) {
+					return callback( "401 Unauthorized", {
+						'WWW-Authenticate': `Basic realm="${auth.realm}"`,
+						'Content-Type': 'text/plain'
+					}, "Unauthorized" );
+				}
+				self.logDebug(9, "Authentication successful for: " + uri_match, { realm: auth.realm, username: auth.username });
+				callback(false); // passthru
+			} ); // addURIFilter
+		} ); // foreach auth
 	}
 	
 	setupChaos() {

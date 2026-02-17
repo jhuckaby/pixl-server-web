@@ -66,6 +66,7 @@ This module is a component for use in [pixl-server](https://www.github.com/jhuck
 	* [debug_ttl](#debug_ttl)
 	* [debug_bind_local](#debug_bind_local)
 	* [chaos](#chaos)
+	* [auth](#auth)
 	* [https](#https)
 	* [https_port](#https_port)
 	* [https_alt_ports](#https_alt_ports)
@@ -862,6 +863,26 @@ Use the `chaos` feature to introduce optional and random fault injection into yo
 ```
 
 Set the `chaos.enabled` flag to `true` to enable fault injection.  By default, all URIs will be affected, unless you specify a `chaos.uri` (regular expression) to limit the requests.  Set `chaos.delay.min` and `chaos.delay.max` to the range you want to delay requests (in milliseconds).  Fill the `chaos.errors` object the HTTP repsonse codes (and status messages) you want to see, and how often.  The values are interpreted as probabilities from `0.0` (never) to `1.0` (always).  In the above example, the `HTTP 503` error code will be injected approximately 10% of the time.  When errors are injected, you can include additional response headers in the `chaos.headers` object.
+
+## auth
+
+Use the `auth` feature to protect URI patterns behind HTTP authentication challenges.  Each key in the `auth` object should be a URI regular expression, and each value should be an auth definition.  Here is an example:
+
+```json
+"auth": {
+	"^/protected": {
+		"enabled": true,
+		"type": "basic",
+		"realm": "Secret Area",
+		"username": "foo",
+		"password": "bar"
+	}
+}
+```
+
+Set `auth.URI.enabled` to `true` to enable auth for that URI pattern.  Set `auth.URI.type` to `basic` to enable HTTP Basic Auth.  Currently, `basic` is the only supported authentication scheme.  The server will challenge unauthorized clients with the configured `auth.URI.realm`, and then compare `auth.URI.username` and `auth.URI.password` against the credentials provided by the client.
+
+The URI match key (e.g. `^/protected`) is treated as a regular expression and is evaluated as a request URI filter.  If credentials are missing or invalid, the request is rejected with `HTTP 401 Unauthorized`.
 
 ## https
 

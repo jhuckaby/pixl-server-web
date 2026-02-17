@@ -68,6 +68,15 @@ var server = new PixlServer({
 					"status": "301 Moved Permanently"
 				}
 			},
+			"auth": {
+				"^/protected": {
+					"enabled": true,
+					"type": "basic",
+					"realm": "Secret Area",
+					"username": "foo",
+					"password": "bar"
+				}
+			},
 			
 			"https": 1,
 			"https_port": 3021,
@@ -161,6 +170,14 @@ module.exports = {
 				web_server.addURIHandler( '/server-status', "Server Status", true, function(args, callback) {
 					// send web stats (JSON), ACL protected endpoint
 					callback( server.WebServer.getStats() );
+				} );
+				
+				web_server.addURIHandler( '/protected', 'Protected Test', function(args, callback) {
+					// auth protected endpoint
+					callback( {
+						code: 0,
+						description: "Protected endpoint success"
+					} );
 				} );
 				
 				web_server.addURIHandler( '/binary-force-compress', 'Force Compress Test', function(args, callback) {
@@ -1663,6 +1680,59 @@ module.exports = {
 					test.ok( resp.statusCode == 403, "Got 403 response: " + resp.statusCode );
 					test.done();
 				} 
+			);
+		},
+		
+		function testAuthRequired(test) {
+			// no auth header should be challenged
+			request.get( 'http://127.0.0.1:3020/protected',
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 401, "Got 401 response: " + resp.statusCode );
+					test.ok( !!resp.headers['www-authenticate'], "Got WWW-Authenticate header" );
+					test.ok( !!resp.headers['www-authenticate'].match(/Basic realm="Secret Area"/), "Correct WWW-Authenticate header: " + resp.headers['www-authenticate'] );
+					test.ok( data.toString() == "Unauthorized", "Correct response body: " + data.toString() );
+					test.done();
+				}
+			);
+		},
+		
+		function testAuthBadCredentials(test) {
+			// invalid basic auth should fail
+			request.get( 'http://127.0.0.1:3020/protected',
+				{
+					headers: {
+						"Authorization": "Basic " + Buffer.from("foo:nope").toString('base64')
+					}
+				},
+				function(err, resp, data, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 401, "Got 401 response: " + resp.statusCode );
+					test.ok( data.toString() == "Unauthorized", "Correct response body: " + data.toString() );
+					test.done();
+				}
+			);
+		},
+		
+		function testAuthGoodCredentials(test) {
+			// valid basic auth should pass through
+			request.json( 'http://127.0.0.1:3020/protected', false,
+				{
+					headers: {
+						"Authorization": "Basic " + Buffer.from("foo:bar").toString('base64')
+					}
+				},
+				function(err, resp, json, perf) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					test.ok( !!resp, "Got resp from PixlRequest" );
+					test.ok( resp.statusCode == 200, "Got 200 response: " + resp.statusCode );
+					test.ok( !!json, "Got JSON in response" );
+					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
+					test.ok( json.description == "Protected endpoint success", "Correct description in JSON response: " + json.description );
+					test.done();
+				}
 			);
 		},
 		
