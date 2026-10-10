@@ -132,7 +132,14 @@ module.exports = {
 						socket_id: args.request.socket._pixl_data.id || 0,
 						method: args.request.method,
 						ip: args.ip,
-						ips: args.ips
+						ips: args.ips,
+						
+						// Inspect the retained Buffer before JSON serializes the response.
+						// Base64 lets the tests compare arbitrary bytes, including non-UTF-8.
+						request_body_is_buffer: Buffer.isBuffer(args.request.body),
+						request_body_base64: Buffer.isBuffer(args.request.body) ? args.request.body.toString('base64') : null,
+						request_body_matches_raw: Buffer.isBuffer(args.request.body) && (args.request.body === args.params.raw),
+						request_body_hmac: Buffer.isBuffer(args.request.body) ? crypto.createHmac('sha256', 'request-body-test-key').update(args.request.body).digest('hex') : null
 					} );
 				} );
 				
@@ -217,6 +224,9 @@ module.exports = {
 					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
 					test.ok( !!json.user, "Found user object in JSON response" );
 					test.ok( json.user.Name == "Joe", "Correct user name in JSON response: " + json.user.Name );
+					
+					// A normal GET has no body to retain on the request.
+					test.ok( !json.request_body_is_buffer && (json.request_body_base64 === null), "Body remains absent for a request without body framing" );
 					
 					// request headers will be echoed back
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
@@ -536,6 +546,9 @@ module.exports = {
 					test.ok( !!json.params, "Found params object in JSON response" );
 					test.ok( json.params.myparam === "foobar4567", "Correct param in JSON response: " + json.params.myparam );
 					
+					// URL-encoded form data uses the separate Formidable parser.
+					test.ok( !json.request_body_is_buffer && (json.request_body_base64 === null), "Body remains absent for URL-encoded forms" );
+					
 					// request headers will be echoed back
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
@@ -580,6 +593,7 @@ module.exports = {
 					test.ok( json.code == 0, "Correct code in JSON response: " + json.code );
 					test.ok( !!json.params, "Found params object in JSON response" );
 					test.ok( json.params.myparam == "foobar5678", "Correct param in JSON response: " + json.params.myparam );
+					test.ok( !json.request_body_is_buffer && (json.request_body_base64 === null), "Body remains absent for multipart forms" );
 					test.ok( !!json.headers, "Found headers echoed in JSON response" );
 					test.ok( json.headers['x-test'] == "Test", "Found Test header echoed in JSON response" );
 					test.ok( !!json.files, "Found files object in JSON response" );
@@ -625,6 +639,67 @@ module.exports = {
 					
 					test.done();
 				} 
+			);
+		},
+		
+		function testJSONRequestBody(test) {
+			// Send an exact JSON Buffer so whitespace, Unicode and escaped values
+			// cannot be normalized by the client before signature verification.
+			var body = Buffer.from('{\n\t"message": "\\u0061",\n\t"unicode": "café",\n\t"body": "caller-controlled"\n}\n');
+			var signature = crypto.createHmac('sha256', 'request-body-test-key').update(body).digest('hex');
+			
+			request.json( 'http://127.0.0.1:3020/json', body,
+				{ headers: { 'Content-Type': 'application/json; charset=utf-8' } },
+				function(err, resp, json) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					if (err) return test.done();
+					test.ok( resp.statusCode == 200, "JSON request succeeded" );
+					test.ok( json.request_body_is_buffer, "JSON request body is retained as a Buffer" );
+					test.ok( json.request_body_base64 === body.toString('base64'), "Original JSON bytes are preserved exactly" );
+					test.ok( json.request_body_hmac === signature, "Retained body verifies the original HMAC signature" );
+					test.ok( json.params.message === 'a' && json.params.unicode === 'café', "JSON parameters are still parsed normally" );
+					test.ok( json.params.body === 'caller-controlled', "A parameter named body remains separate from request.body" );
+					test.ok( typeof(json.params.raw) == 'undefined', "JSON parameters do not acquire a raw field" );
+					test.done();
+				}
+			);
+		},
+		
+		function testRawRequestBody(test) {
+			// Invalid UTF-8 bytes must survive unchanged. The new request property
+			// should reference the same Buffer as the existing params.raw property.
+			var body = Buffer.from([0x00, 0x01, 0x7f, 0x80, 0xff, 0x0a]);
+			var signature = crypto.createHmac('sha256', 'request-body-test-key').update(body).digest('hex');
+			
+			request.json( 'http://127.0.0.1:3020/json', body,
+				{ headers: { 'Content-Type': 'application/octet-stream' } },
+				function(err, resp, json) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					if (err) return test.done();
+					test.ok( resp.statusCode == 200, "Raw request succeeded" );
+					test.ok( json.request_body_is_buffer, "Raw request body is retained as a Buffer" );
+					test.ok( json.request_body_base64 === body.toString('base64'), "Binary request bytes are preserved exactly" );
+					test.ok( json.request_body_hmac === signature, "Binary request preserves the original HMAC signature" );
+					test.ok( json.request_body_matches_raw, "request.body and params.raw reference the same Buffer" );
+					test.done();
+				}
+			);
+		},
+		
+		function testEmptyRequestBody(test) {
+			// An explicit Content-Length of zero still takes the raw-body path and
+			// exposes an empty Buffer, rather than omitting the request property.
+			request.json( 'http://127.0.0.1:3020/json', Buffer.alloc(0),
+				{ headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': '0' } },
+				function(err, resp, json) {
+					test.ok( !err, "No error from PixlRequest: " + err );
+					if (err) return test.done();
+					test.ok( resp.statusCode == 200, "Empty raw request succeeded" );
+					test.ok( json.request_body_is_buffer, "Empty body is retained as a Buffer" );
+					test.ok( json.request_body_base64 === '', "Retained Buffer has zero bytes" );
+					test.ok( json.request_body_matches_raw, "Empty body still shares the params.raw Buffer" );
+					test.done();
+				}
 			);
 		},
 		

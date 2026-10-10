@@ -1164,8 +1164,13 @@ This is a reference to the underlying [Node.js server request](https://nodejs.or
 | `request.method` | The HTTP method used in the request, e.g. `GET`, `POST`, etc. | 
 | `request.url` | The complete URI of the request (sans protocol and hostname). | 
 | `request.socket` | A reference to the underlying socket connection for the request. | 
+| `request.body` | The original request body as a [Buffer](https://nodejs.org/api/buffer.html), added by pixl-server-web for JSON and raw requests.  See below for details. |
 
 For more detailed documentation on the request object, see Node's [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage).
+
+For JSON and raw requests, pixl-server-web adds `args.request.body` containing the original body bytes, before any JSON parsing.  You can use this Buffer to verify webhook signatures against the exact payload received, including its whitespace and character encoding.  JSON requests still have their parsed values in `args.params`, and raw requests share the same Buffer with `args.params.raw`.
+
+The property is undefined for unencoded multipart and URL-encoded form requests, which use a separate parser.  It is also undefined for `HEAD` requests and requests without a `Content-Length` or `Transfer-Encoding` header.  A raw request with `Content-Length: 0` has an empty Buffer.
 
 ### args.response
 
