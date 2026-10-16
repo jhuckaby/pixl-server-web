@@ -5,6 +5,7 @@
 var Path = require('path');
 var fs = require('fs');
 var net = require('net');
+var tls = require('tls');
 var crypto = require('crypto');
 var async = require('async');
 
@@ -1921,6 +1922,63 @@ module.exports = {
 		},
 		
 		// https
+		function testHTTPSRejectedSNI(test) {
+			// A rejected TLS connection can still deliver its buffered HTTP request.
+			// This must be ignored before accessing the socket's missing metadata.
+			var web = this.web_server;
+			var listener = web.https;
+			var allow_hosts = web.allowHosts;
+			var https_allow_hosts = web.httpsAllowHosts;
+			var server_socket = null;
+			var response_data = '';
+			var socket_error = null;
+			var timed_out = false;
+			
+			web.allowHosts = ['allowed.example'];
+			web.httpsAllowHosts = ['allowed.example'];
+			
+			// Observe the socket after the web server's SNI rejection handler runs.
+			var on_secure = function(socket) {
+				if (socket.servername == 'rejected.example') server_socket = socket;
+			};
+			listener.on('secureConnection', on_secure);
+			
+			var client = tls.connect({
+				host: '127.0.0.1',
+				port: listener.address().port,
+				servername: 'rejected.example',
+				rejectUnauthorized: false // self-signed test cert
+			});
+			
+			// Bound the test even if the server fails to reject the connection.
+			var timer = setTimeout( function() {
+				timed_out = true;
+				client.destroy();
+			}, 5000 );
+			
+			client.on('data', function(data) { response_data += data.toString(); });
+			client.on('error', function(err) { socket_error = err; });
+			client.once('close', function() {
+				clearTimeout(timer);
+				listener.removeListener('secureConnection', on_secure);
+				web.allowHosts = allow_hosts;
+				web.httpsAllowHosts = https_allow_hosts;
+				
+				// A clean close or connection reset is expected, with no HTTP response.
+				test.ok( !timed_out, "Rejected HTTPS connection closed without timing out" );
+				test.ok( !socket_error || (socket_error.code == 'ECONNRESET'), "No unexpected TLS error: " + socket_error );
+				test.ok( !!server_socket, "Server received the rejected SNI hostname" );
+				test.ok( server_socket && server_socket.destroyed, "Server destroyed the rejected TLS socket" );
+				test.ok( server_socket && !server_socket._pixl_data, "Rejected socket has no request metadata" );
+				test.ok( response_data === '', "Rejected TLS connection received no HTTP response" );
+				test.done();
+			});
+			
+			// Queue the request immediately so it arrives with the TLS handshake.
+			// Node.js 24.22 delivers this even after the server destroys the socket.
+			client.write("GET /json HTTP/1.1\r\nHost: rejected.example\r\nConnection: close\r\n\r\n");
+		},
+		
 		function testHTTPSRequest(test) {
 			// test HTTPS GET request to webserver backend
 			request.json( 'https://127.0.0.1:3021/json', false,
